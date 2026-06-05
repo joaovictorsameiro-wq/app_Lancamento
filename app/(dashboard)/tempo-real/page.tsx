@@ -81,10 +81,14 @@ export default function TempoRealPage() {
     return () => clearInterval(interval)
   }, [fetchData])
 
-  // KPIs calculados direto do tráfego quando a view funil não tem o LC
+  // KPIs calculados direto do tráfego
   const totalLeads = funil?.total_leads ?? diario.reduce((s, d) => s + (d.leads ?? 0), 0)
+  // gasto total (todas campanhas: captação + distribuição + remarketing)
   const totalGasto = funil?.investimento_total ?? diario.reduce((s, d) => s + (d.gasto ?? 0), 0)
-  const cplCalculado = funil?.cpl ?? (totalLeads > 0 ? totalGasto / totalLeads : 0)
+  // gasto apenas de campanhas que geraram leads — usado para CPL real (igual ao Meta)
+  const gastoCaptacao = diario.reduce((s, d) => s + (d.gasto_captacao ?? 0), 0)
+  const cplCalculado = funil?.cpl
+    ?? (totalLeads > 0 && gastoCaptacao > 0 ? gastoCaptacao / totalLeads : 0)
   const totalVendas = funil?.total_vendas ?? null
   const taxaConversao = funil?.taxa_conversao_pct ?? null
 
@@ -132,10 +136,35 @@ export default function TempoRealPage() {
 
       {/* KPIs em tempo real */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <KpiCard title="Leads Captados" value={totalLeads > 0 ? fmt_number(totalLeads) : '—'} icon={Activity} accent="blue" loading={loading} />
-        <KpiCard title="CPL Atual" value={cplCalculado > 0 ? fmt_currency(cplCalculado) : '—'} icon={AlertTriangle} accent={cplCalculado > CPL_META ? 'red' : 'emerald'} loading={loading} />
-        <KpiCard title="Compradores" value={totalVendas != null ? fmt_number(totalVendas) : '—'} icon={Activity} accent="emerald" loading={loading} />
-        <KpiCard title="Conversão" value={taxaConversao != null ? fmt_pct(taxaConversao, 2) : '—'} icon={Activity} accent={taxaConversao != null && taxaConversao < CONVERSAO_META ? 'amber' : 'emerald'} loading={loading} />
+        <KpiCard
+          title="Leads Captados"
+          value={totalLeads > 0 ? fmt_number(totalLeads) : '—'}
+          icon={Activity}
+          accent="blue"
+          loading={loading}
+        />
+        <KpiCard
+          title="CPL (só captação)"
+          value={cplCalculado > 0 ? fmt_currency(cplCalculado) : '—'}
+          subtitle={totalGasto > 0 ? `Invest. total: ${fmt_currency(totalGasto, true)}` : undefined}
+          icon={AlertTriangle}
+          accent={cplCalculado > CPL_META ? 'red' : 'emerald'}
+          loading={loading}
+        />
+        <KpiCard
+          title="Compradores"
+          value={totalVendas != null ? fmt_number(totalVendas) : '—'}
+          icon={Activity}
+          accent="emerald"
+          loading={loading}
+        />
+        <KpiCard
+          title="Conversão"
+          value={taxaConversao != null ? fmt_pct(taxaConversao, 2) : '—'}
+          icon={Activity}
+          accent={taxaConversao != null && taxaConversao < CONVERSAO_META ? 'amber' : 'emerald'}
+          loading={loading}
+        />
       </div>
 
       {/* Gráfico diário de leads + gasto */}

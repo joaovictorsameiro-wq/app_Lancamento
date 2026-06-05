@@ -53,8 +53,13 @@ export async function getTrafegoDiario(idLancamento: string) {
     SELECT
       data::date AS dia,
       SUM(total_gasto)::float AS gasto,
+      -- gasto apenas das campanhas que geram leads (captação), usado pro CPL real
+      SUM(CASE WHEN leads > 0 THEN total_gasto ELSE 0 END)::float AS gasto_captacao,
       SUM(leads)::int AS leads,
-      CASE WHEN SUM(leads) > 0 THEN SUM(total_gasto) / SUM(leads) ELSE NULL END AS cpl
+      CASE WHEN SUM(leads) > 0
+        THEN SUM(CASE WHEN leads > 0 THEN total_gasto ELSE 0 END) / SUM(leads)
+        ELSE NULL
+      END AS cpl
     FROM trafego_meta
     WHERE id_lancamento = ${idLancamento}
     GROUP BY dia
@@ -91,6 +96,7 @@ export type AnuncioScore = {
 export type TrafegoDiario = {
   dia: string
   gasto: number
+  gasto_captacao: number
   leads: number
   cpl: number
 }
