@@ -24,21 +24,29 @@ export default function OverviewPage() {
   const [lancamento, setLancamento] = useState<Lancamento | null>(null)
   const [historico, setHistorico] = useState<FunilRow[]>([])
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
 
   useEffect(() => {
     if (!lancamentoId) return
     setLoading(true)
+    setError(null)
     Promise.all([
       fetch(`/api/funil?id=${lancamentoId}`).then(r => r.json()),
       fetch('/api/lancamentos').then(r => r.json()),
       fetch('/api/funil').then(r => r.json()),
     ]).then(([funilData, lancs, hist]) => {
+      // Se algum retornou erro da API, exibir mensagem
+      const apiError = [funilData, lancs, hist].find(d => d && typeof d === 'object' && !Array.isArray(d) && d.error)
+      if (apiError) {
+        setError(apiError.error)
+        return
+      }
       setFunil(Array.isArray(funilData) ? (funilData[0] ?? null) : null)
       setLancamento(Array.isArray(lancs) ? (lancs.find((l: Lancamento) => l.codigo === lancamentoId) ?? null) : null)
       setHistorico(Array.isArray(hist) ? hist.slice(0, 10) : [])
       setLastUpdate(new Date())
-    }).catch(console.error).finally(() => setLoading(false))
+    }).catch(err => setError(err?.message ?? 'Erro de conexão')).finally(() => setLoading(false))
   }, [lancamentoId])
 
   // Calcular comparativo com lançamento anterior
@@ -55,6 +63,12 @@ export default function OverviewPage() {
 
   return (
     <div className="p-6 space-y-6">
+      {error && (
+        <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 flex items-center gap-2 text-sm text-red-400">
+          <span className="font-semibold">Erro ao carregar dados:</span>
+          <span className="text-red-300">{error}</span>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>

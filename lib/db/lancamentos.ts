@@ -14,11 +14,16 @@ export async function getLancamentoAtual() {
 }
 
 export async function getFunilLancamento(idLancamento?: string) {
-  const where = idLancamento ? `WHERE id_lancamento = '${idLancamento}'` : ''
-  const result = await prisma.$queryRawUnsafe<FunilRow[]>(
-    `SELECT * FROM funil_lancamento ${where} ORDER BY id_lancamento DESC`
-  )
-  return result
+  if (idLancamento) {
+    return prisma.$queryRaw<FunilRow[]>`
+      SELECT * FROM funil_lancamento
+      WHERE id_lancamento = ${idLancamento}
+      ORDER BY id_lancamento DESC
+    `
+  }
+  return prisma.$queryRaw<FunilRow[]>`
+    SELECT * FROM funil_lancamento ORDER BY id_lancamento DESC
+  `
 }
 
 export type FunilRow = {
