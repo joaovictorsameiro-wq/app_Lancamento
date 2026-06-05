@@ -5,11 +5,11 @@ import {
   DollarSign, Users, ShoppingCart, TrendingUp,
   Target, BarChart2, Activity, RefreshCw
 } from 'lucide-react'
-import KpiCard from '../../components/kpi-card'
-import FunilChart from '../../components/funil-chart'
-import LancamentoSelector from '../../components/lancamento-selector'
-import { fmt_currency, fmt_number, fmt_pct } from '../../lib/format'
-import type { FunilRow } from '../../lib/db/lancamentos'
+import KpiCard from '../../../components/kpi-card'
+import FunilChart from '../../../components/funil-chart'
+import LancamentoSelector from '../../../components/lancamento-selector'
+import { fmt_currency, fmt_number, fmt_pct } from '../../../lib/format'
+import type { FunilRow } from '../../../lib/db/lancamentos'
 
 type Lancamento = {
   codigo: string
