@@ -11,7 +11,6 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Generate Prisma client (needs DB URL only for type generation, not connection)
 RUN npx prisma generate
 
 ARG DATABASE_URL
@@ -19,6 +18,7 @@ ARG DIRECT_URL
 ENV DATABASE_URL=$DATABASE_URL
 ENV DIRECT_URL=$DIRECT_URL
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
 
 RUN npm run build
 
@@ -29,12 +29,17 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN addgroup --system --gid 1001 nodejs && \
+    adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Prisma query engine para runtime
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
 USER nextjs
 
