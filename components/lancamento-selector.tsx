@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ChevronDown, Loader2 } from 'lucide-react'
+import { ChevronDown, Loader2, AlertCircle } from 'lucide-react'
 
 interface Lancamento {
   codigo: string
@@ -18,18 +18,22 @@ export default function LancamentoSelector({ value, onChange }: Props) {
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([])
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/lancamentos')
       .then(r => r.json())
       .then(data => {
+        if (!Array.isArray(data)) {
+          setError('Erro ao carregar lançamentos')
+          return
+        }
         setLancamentos(data)
         if (!value && data.length > 0) onChange(data[0].codigo)
       })
+      .catch(() => setError('Falha na conexão com o banco'))
       .finally(() => setLoading(false))
   }, [])
-
-  const selected = lancamentos.find(l => l.codigo === value)
 
   if (loading) {
     return (
@@ -39,6 +43,17 @@ export default function LancamentoSelector({ value, onChange }: Props) {
       </div>
     )
   }
+
+  if (error) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+        <AlertCircle size={14} />
+        {error}
+      </div>
+    )
+  }
+
+  const selected = lancamentos.find(l => l.codigo === value)
 
   return (
     <div className="relative">

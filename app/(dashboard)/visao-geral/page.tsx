@@ -34,11 +34,11 @@ export default function OverviewPage() {
       fetch('/api/lancamentos').then(r => r.json()),
       fetch('/api/funil').then(r => r.json()),
     ]).then(([funilData, lancs, hist]) => {
-      setFunil(funilData[0] ?? null)
-      setLancamento(lancs.find((l: Lancamento) => l.codigo === lancamentoId) ?? null)
-      setHistorico(hist.slice(0, 10))
+      setFunil(Array.isArray(funilData) ? (funilData[0] ?? null) : null)
+      setLancamento(Array.isArray(lancs) ? (lancs.find((l: Lancamento) => l.codigo === lancamentoId) ?? null) : null)
+      setHistorico(Array.isArray(hist) ? hist.slice(0, 10) : [])
       setLastUpdate(new Date())
-    }).finally(() => setLoading(false))
+    }).catch(console.error).finally(() => setLoading(false))
   }, [lancamentoId])
 
   // Calcular comparativo com lançamento anterior
