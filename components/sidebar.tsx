@@ -15,7 +15,7 @@ import {
 } from 'lucide-react'
 
 const NAV = [
-  { href: '/',              label: 'Visão Geral',      icon: LayoutDashboard, desc: 'KPIs consolidados' },
+  { href: '/visao-geral',   label: 'Visão Geral',      icon: LayoutDashboard, desc: 'KPIs consolidados' },
   { href: '/tempo-real',    label: 'Tempo Real',       icon: Activity,        desc: 'Funil ao vivo' },
   { href: '/forecasting',   label: 'Forecasting',      icon: TrendingUp,      desc: 'Projeções e comparativos' },
   { href: '/financeiro',    label: 'DRE Dinâmico',     icon: DollarSign,      desc: 'Conciliação financeira' },
@@ -43,7 +43,7 @@ export default function Sidebar() {
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5">
         {NAV.map(item => {
-          const active = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))
+          const active = pathname === item.href || pathname.startsWith(item.href)
           return (
             <Link
               key={item.href}

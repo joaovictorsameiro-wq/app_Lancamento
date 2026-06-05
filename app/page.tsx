@@ -1,7 +1,5 @@
-export default function Home() {
-  return (
-    <main className="flex min-h-screen items-center justify-center bg-gray-950">
-      <h1 className="text-5xl font-bold text-white">Hello World</h1>
-    </main>
-  );
+import { redirect } from 'next/navigation'
+
+export default function RootPage() {
+  redirect('/visao-geral')
 }
