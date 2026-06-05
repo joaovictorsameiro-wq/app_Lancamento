@@ -44,7 +44,6 @@ export async function getTrafegoAnuncios(idLancamento: string) {
     WHERE id_lancamento = ${idLancamento}
     GROUP BY anuncio, conjunto_anuncio, campanha
     ORDER BY leads DESC NULLS LAST
-    LIMIT 20
   `
   return result
 }

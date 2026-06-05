@@ -36,10 +36,10 @@ export default function TempoRealPage() {
         fetch(`/api/trafego?id=${lancamentoId}&view=diario`).then(r => r.json()),
         fetch(`/api/trafego?id=${lancamentoId}&view=anuncios`).then(r => r.json()),
       ])
-      const f: FunilRow = funilData[0] ?? null
+      const f: FunilRow | null = Array.isArray(funilData) && funilData.length > 0 ? funilData[0] : null
       setFunil(f)
-      setDiario(diarioData)
-      setAnuncios(anunciosData)
+      setDiario(Array.isArray(diarioData) ? diarioData : [])
+      setAnuncios(Array.isArray(anunciosData) ? anunciosData : [])
       setLastUpdate(new Date())
 
       // Calcular alertas
@@ -81,11 +81,18 @@ export default function TempoRealPage() {
     return () => clearInterval(interval)
   }, [fetchData])
 
+  // KPIs calculados direto do tráfego quando a view funil não tem o LC
+  const totalLeads = funil?.total_leads ?? diario.reduce((s, d) => s + (d.leads ?? 0), 0)
+  const totalGasto = funil?.investimento_total ?? diario.reduce((s, d) => s + (d.gasto ?? 0), 0)
+  const cplCalculado = funil?.cpl ?? (totalLeads > 0 ? totalGasto / totalLeads : 0)
+  const totalVendas = funil?.total_vendas ?? null
+  const taxaConversao = funil?.taxa_conversao_pct ?? null
+
   // Score de anúncios (baseado em CTR × leads / CPL)
   const anunciosComScore = anuncios.map(a => ({
     ...a,
     score: a.leads > 0 && a.cpl > 0
-      ? Math.round(((a.ctr_medio * 100) * (a.leads / (a.cpl))) / 10)
+      ? Math.round((a.ctr_medio * (a.leads / a.cpl)) * 10)
       : 0,
   })).sort((a, b) => b.score - a.score)
 
@@ -125,10 +132,10 @@ export default function TempoRealPage() {
 
       {/* KPIs em tempo real */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <KpiCard title="Leads Captados" value={funil ? fmt_number(funil.total_leads) : '—'} icon={Activity} accent="blue" loading={loading} />
-        <KpiCard title="CPL Atual" value={funil ? fmt_currency(funil.cpl) : '—'} icon={AlertTriangle} accent={funil && funil.cpl > CPL_META ? 'red' : 'emerald'} loading={loading} />
-        <KpiCard title="Compradores" value={funil ? fmt_number(funil.total_vendas) : '—'} icon={Activity} accent="emerald" loading={loading} />
-        <KpiCard title="Conversão" value={funil ? fmt_pct(funil.taxa_conversao_pct, 2) : '—'} icon={Activity} accent={funil && funil.taxa_conversao_pct < CONVERSAO_META ? 'amber' : 'emerald'} loading={loading} />
+        <KpiCard title="Leads Captados" value={totalLeads > 0 ? fmt_number(totalLeads) : '—'} icon={Activity} accent="blue" loading={loading} />
+        <KpiCard title="CPL Atual" value={cplCalculado > 0 ? fmt_currency(cplCalculado) : '—'} icon={AlertTriangle} accent={cplCalculado > CPL_META ? 'red' : 'emerald'} loading={loading} />
+        <KpiCard title="Compradores" value={totalVendas != null ? fmt_number(totalVendas) : '—'} icon={Activity} accent="emerald" loading={loading} />
+        <KpiCard title="Conversão" value={taxaConversao != null ? fmt_pct(taxaConversao, 2) : '—'} icon={Activity} accent={taxaConversao != null && taxaConversao < CONVERSAO_META ? 'amber' : 'emerald'} loading={loading} />
       </div>
 
       {/* Gráfico diário de leads + gasto */}
@@ -138,15 +145,23 @@ export default function TempoRealPage() {
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={diario} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="dia" tick={{ fontSize: 10 }} tickFormatter={v => v?.slice(5)} />
+              <XAxis dataKey="dia" tick={{ fontSize: 10 }} tickFormatter={v => {
+                if (!v) return ''
+                const d = new Date(v)
+                return isNaN(d.getTime()) ? v : d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+              }} />
               <YAxis yAxisId="leads" orientation="left" tick={{ fontSize: 10 }} />
               <YAxis yAxisId="gasto" orientation="right" tick={{ fontSize: 10 }} tickFormatter={v => `R$${v}`} />
               <Tooltip
                 contentStyle={{ background: '#111827', border: '1px solid #1f2937', borderRadius: 8 }}
                 labelStyle={{ color: '#9ca3af', fontSize: 11 }}
                 itemStyle={{ fontSize: 11 }}
+                labelFormatter={(label: string) => {
+                  const d = new Date(label)
+                  return isNaN(d.getTime()) ? label : d.toLocaleDateString('pt-BR')
+                }}
                 formatter={(v: number, name: string) =>
-                  name === 'gasto' ? [fmt_currency(v), 'Gasto'] : [fmt_number(v), 'Leads']
+                  name === 'Gasto (R$)' ? [fmt_currency(v), 'Gasto'] : [fmt_number(v), 'Leads']
                 }
               />
               <Legend wrapperStyle={{ fontSize: 11 }} />
@@ -161,34 +176,38 @@ export default function TempoRealPage() {
 
       {/* Score de anúncios */}
       <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-5">
-        <h2 className="text-sm font-semibold text-white mb-1">Score de Anúncios</h2>
+        <div className="flex items-center justify-between mb-1">
+          <h2 className="text-sm font-semibold text-white">Score de Anúncios</h2>
+          <span className="text-xs text-gray-500">{anunciosComScore.length} anúncios</span>
+        </div>
         <p className="text-xs text-gray-500 mb-4">Ranking por CTR × Leads / CPL — quanto maior, melhor o anúncio</p>
-        <DataTable
-          loading={loading}
-          columns={[
-            {
-              key: 'anuncio', label: 'Anúncio', render: r => (
-                <span className="text-xs text-gray-200 truncate block max-w-48" title={r.anuncio as string}>
-                  {(r.anuncio as string)?.slice(0, 40) || '—'}
-                </span>
-              )
-            },
-            { key: 'leads', label: 'Leads', align: 'right', sortable: true, render: r => fmt_number(r.leads as number) },
-            { key: 'ctr_medio', label: 'CTR', align: 'right', sortable: true, render: r => fmt_pct((r.ctr_medio as number) * 100, 2) },
-            { key: 'cpc_medio', label: 'CPC', align: 'right', sortable: true, render: r => fmt_currency(r.cpc_medio as number) },
-            { key: 'cpl', label: 'CPL', align: 'right', sortable: true, render: r => fmt_currency(r.cpl as number) },
-            {
-              key: 'score', label: 'Score', align: 'right', sortable: true,
-              render: r => (
-                <span className={`font-bold tabular-nums ${(r.score as number) > 50 ? 'text-emerald-400' : (r.score as number) > 20 ? 'text-amber-400' : 'text-red-400'}`}>
-                  {fmt_number(r.score as number)}
-                </span>
-              )
-            },
-          ]}
-          data={anunciosComScore as unknown as Record<string, unknown>[]}
-          maxRows={10}
-        />
+        <div className="max-h-96 overflow-y-auto pr-1">
+          <DataTable
+            loading={loading}
+            columns={[
+              {
+                key: 'anuncio', label: 'Anúncio', render: r => (
+                  <span className="text-xs text-gray-200 truncate block max-w-48" title={r.anuncio as string}>
+                    {(r.anuncio as string)?.slice(0, 40) || '—'}
+                  </span>
+                )
+              },
+              { key: 'leads', label: 'Leads', align: 'right', sortable: true, render: r => fmt_number(r.leads as number) },
+              { key: 'ctr_medio', label: 'CTR', align: 'right', sortable: true, render: r => fmt_pct(r.ctr_medio as number, 2) },
+              { key: 'cpc_medio', label: 'CPC', align: 'right', sortable: true, render: r => fmt_currency(r.cpc_medio as number) },
+              { key: 'cpl', label: 'CPL', align: 'right', sortable: true, render: r => fmt_currency(r.cpl as number) },
+              {
+                key: 'score', label: 'Score', align: 'right', sortable: true,
+                render: r => (
+                  <span className={`font-bold tabular-nums ${(r.score as number) > 50 ? 'text-emerald-400' : (r.score as number) > 20 ? 'text-amber-400' : 'text-red-400'}`}>
+                    {fmt_number(r.score as number)}
+                  </span>
+                )
+              },
+            ]}
+            data={anunciosComScore as unknown as Record<string, unknown>[]}
+          />
+        </div>
       </div>
     </div>
   )
