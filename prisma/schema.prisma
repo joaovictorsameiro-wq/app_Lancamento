@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model lancamentos {
+  codigo            String   @id
+  nome              String
+  data_inicio       DateTime?
+  data_fim          DateTime?
+  status            String?
+  meta_faturamento  Float?
+  observacoes       String?
+}
+
+model trafego_meta {
+  unique_key       String   @id
+  id_lancamento    String?
+  data             DateTime?
+  campanha         String?
+  conjunto_anuncio String?
+  anuncio          String?
+  impressoes       Int?
+  cliques_no_link  Int?
+  cpc              Float?
+  cpm              Float?
+  ctr              Float?
+  total_gasto      Float?
+  leads            Int?
+}
+
+model leads {
+  email              String
+  id_lancamento      String
+  hotmart_id         String?
+  nome               String?
+  telefone           String?
+  utm_source         String?
+  utm_medium         String?
+  utm_campaign       String?
+  utm_content        String?
+  utm_term           String?
+  virou_comprador    Boolean?  @default(false)
+  respondeu_avatar   Boolean?  @default(false)
+
+  @@id([email, id_lancamento])
+}
+
+model avatar {
+  email                    String
+  id_lancamento            String
+  formacao_universitaria   String?
+  maior_titulacao          String?
+  experiencia_profissional String?
+  anos_experiencia         String?
+  sexo                     String?
+  idade                    Int?
+  estado                   String?
+  tempo_conhece_claudio    String?
+  mais_atrativo            String?
+  renda_familiar           String?
+  pergunta_ao_claudio      String?
+  desejos_desafios         String?
+  possui_filhos            String?
+  utm_source               String?
+  utm_medium               String?
+  utm_campaign             String?
+
+  @@id([email, id_lancamento])
+}
+
+model compradores {
+  email               String
+  id_lancamento       String
+  hotmart_transaction String?
+  nome                String?
+  telefone            String?
+  produto             String?
+  valor_bruto         Float?
+  valor_liquido       Float?
+  metodo_pagamento    String?
+  status_pagamento    String?
+  utm_source          String?
+  utm_medium          String?
+  utm_campaign        String?
+  data_compra         DateTime?
+
+  @@id([email, id_lancamento])
+}
