@@ -89,22 +89,39 @@ function utmColumns(nivel: UtmNivel) {
   ]
 
   if (nivel === 'campanha') return [
-    { key: 'utm_campaign', label: 'Campanha', render: (r: Record<string, unknown>) => <span className="text-xs">{r.utm_campaign as string}</span> },
+    { key: 'utm_campaign', label: 'Campanha', render: (r: Record<string, unknown>) => (
+      <span className="text-xs" title={r.utm_campaign as string}>{r.utm_campaign as string}</span>
+    )},
     { key: 'utm_source', label: 'Source', render: (r: Record<string, unknown>) => <span className="text-xs text-gray-500">{r.utm_source as string}</span> },
     ...base,
   ]
 
   if (nivel === 'conjunto') return [
-    { key: 'utm_medium', label: 'Conjunto', render: (r: Record<string, unknown>) => <span className="text-xs">{r.utm_medium as string}</span> },
-    { key: 'utm_campaign', label: 'Campanha', render: (r: Record<string, unknown>) => <span className="text-xs text-gray-500 truncate block max-w-28">{r.utm_campaign as string}</span> },
+    { key: 'utm_medium', label: 'Conjunto', render: (r: Record<string, unknown>) => (
+      <span className="text-xs font-medium">{r.utm_medium as string}</span>
+    )},
+    { key: 'utm_source', label: 'Source', render: (r: Record<string, unknown>) => <span className="text-xs text-gray-500">{r.utm_source as string}</span> },
+    { key: 'utm_campaign', label: 'Campanha', render: (r: Record<string, unknown>) => (
+      <span className="text-xs text-gray-500 truncate block max-w-36 cursor-help" title={r.utm_campaign as string}>
+        {r.utm_campaign as string}
+      </span>
+    )},
     ...base,
   ]
 
   // anuncio
   return [
-    { key: 'utm_content', label: 'Anúncio', render: (r: Record<string, unknown>) => <span className="text-xs">{r.utm_content as string}</span> },
-    { key: 'utm_medium', label: 'Conjunto', render: (r: Record<string, unknown>) => <span className="text-xs text-gray-500 truncate block max-w-24">{r.utm_medium as string}</span> },
-    { key: 'utm_campaign', label: 'Campanha', render: (r: Record<string, unknown>) => <span className="text-xs text-gray-500 truncate block max-w-24">{r.utm_campaign as string}</span> },
+    { key: 'utm_content', label: 'Anúncio', render: (r: Record<string, unknown>) => (
+      <span className="text-xs font-medium" title={r.utm_content as string}>{r.utm_content as string}</span>
+    )},
+    { key: 'utm_medium', label: 'Conjunto', render: (r: Record<string, unknown>) => (
+      <span className="text-xs text-gray-400" title={r.utm_medium as string}>{r.utm_medium as string}</span>
+    )},
+    { key: 'utm_campaign', label: 'Campanha', render: (r: Record<string, unknown>) => (
+      <span className="text-xs text-gray-500 truncate block max-w-36 cursor-help" title={r.utm_campaign as string}>
+        {r.utm_campaign as string}
+      </span>
+    )},
     ...base,
   ]
 }
@@ -137,15 +154,19 @@ export default function ForecastingPage() {
     }).finally(() => setLoading(false))
   }, [lancamentoId])
 
-  // Recarregar UTM quando nível muda
+  // Recarregar UTM quando nível ou lançamento muda — limpa dados antigos imediatamente
   useEffect(() => {
     if (!lancamentoId) return
+    setUtmData([])   // limpa dados antigos para não mostrar colunas erradas
     const viewMap: Record<UtmNivel, string> = {
       source: 'utm', campanha: 'campanha', conjunto: 'conjunto', anuncio: 'anuncio'
     }
-    fetch(`/api/leads?id=${lancamentoId}&view=${viewMap[utmNivel]}`)
+    const controller = new AbortController()
+    fetch(`/api/leads?id=${lancamentoId}&view=${viewMap[utmNivel]}`, { signal: controller.signal })
       .then(r => r.json())
       .then(d => setUtmData(Array.isArray(d) ? d : []))
+      .catch(() => {}) // ignora AbortError
+    return () => controller.abort()
   }, [lancamentoId, utmNivel])
 
   // Recarregar avatar quando dimensão muda
@@ -277,6 +298,20 @@ export default function ForecastingPage() {
             columns={utmColumns(utmNivel)}
             data={utmData}
           />
+          {/* Totalizador: vendas rastreadas vs total do lançamento */}
+          {funil && utmData.length > 0 && (() => {
+            const vendasRastreadas = utmData.reduce((s, r) => s + Number(r.compradores ?? 0), 0)
+            const totalVendas = Number(funil.total_vendas)
+            const semUtm = totalVendas - vendasRastreadas
+            return semUtm > 0 ? (
+              <div className="mt-3 pt-3 border-t border-gray-800 flex items-center justify-between text-xs">
+                <span className="text-gray-500">
+                  {vendasRastreadas}/{totalVendas} vendas com UTM rastreado
+                </span>
+                <span className="text-amber-400">{semUtm} sem UTM</span>
+              </div>
+            ) : null
+          })()}
         </div>
 
         <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-5">
