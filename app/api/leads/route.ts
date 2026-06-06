@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getLeadsUtmAnalysis, getLeadsTimeline } from '../../../lib/db/leads'
+import {
+  getLeadsUtmAnalysis,
+  getLeadsUtmCampanha,
+  getLeadsUtmConjunto,
+  getLeadsUtmAnuncio,
+  getLeadsTimeline,
+} from '../../../lib/db/leads'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -9,9 +15,13 @@ export async function GET(req: NextRequest) {
   if (!id) return NextResponse.json({ error: 'id obrigatório' }, { status: 400 })
 
   try {
-    const data = view === 'timeline'
-      ? await getLeadsTimeline(id)
-      : await getLeadsUtmAnalysis(id)
+    let data
+    if (view === 'timeline')       data = await getLeadsTimeline(id)
+    else if (view === 'campanha')  data = await getLeadsUtmCampanha(id)
+    else if (view === 'conjunto')  data = await getLeadsUtmConjunto(id)
+    else if (view === 'anuncio')   data = await getLeadsUtmAnuncio(id)
+    else                           data = await getLeadsUtmAnalysis(id)
+
     return NextResponse.json(data)
   } catch (err) {
     console.error('[GET /api/leads]', err)

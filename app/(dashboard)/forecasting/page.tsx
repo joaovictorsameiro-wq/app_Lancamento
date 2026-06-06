@@ -1,14 +1,13 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { TrendingUp, Target, BarChart2, Users } from 'lucide-react'
+import { TrendingUp, Target, BarChart2, Users, EyeOff } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
 import KpiCard from '../../../components/kpi-card'
 import LancamentoSelector from '../../../components/lancamento-selector'
 import DataTable from '../../../components/data-table'
 import { fmt_currency, fmt_number, fmt_pct } from '../../../lib/format'
 import type { FunilRow } from '../../../lib/db/lancamentos'
-import type { UtmAnalysis } from '../../../lib/db/leads'
 import type { AvatarConversao } from '../../../lib/db/avatar'
 
 type Lancamento = {
@@ -19,6 +18,8 @@ type Lancamento = {
   data_fim: string | null
   meta_faturamento: number | null
 }
+
+type UtmNivel = 'source' | 'campanha' | 'conjunto' | 'anuncio'
 
 function calcularProjecao(funil: FunilRow, lancamento: Lancamento | null) {
   if (!funil || !lancamento?.data_inicio || !lancamento?.data_fim) return null
@@ -66,14 +67,57 @@ function calcularProjecao(funil: FunilRow, lancamento: Lancamento | null) {
   }
 }
 
+// Colunas contextuais por nível de UTM
+function utmColumns(nivel: UtmNivel) {
+  const base = [
+    { key: 'total_leads', label: 'Leads', align: 'right' as const, sortable: true, render: (r: Record<string, unknown>) => fmt_number(r.total_leads as number) },
+    { key: 'compradores', label: 'Vendas', align: 'right' as const, sortable: true, render: (r: Record<string, unknown>) => fmt_number(r.compradores as number) },
+    {
+      key: 'taxa_conversao', label: 'Conv.', align: 'right' as const, sortable: true,
+      render: (r: Record<string, unknown>) => (
+        <span className={`font-medium ${Number(r.taxa_conversao) > 2 ? 'text-emerald-400' : 'text-gray-300'}`}>
+          {fmt_pct(r.taxa_conversao as number, 2)}
+        </span>
+      )
+    },
+  ]
+
+  if (nivel === 'source') return [
+    { key: 'utm_source', label: 'Source', render: (r: Record<string, unknown>) => <span className="text-xs font-mono">{r.utm_source as string}</span> },
+    ...base,
+  ]
+
+  if (nivel === 'campanha') return [
+    { key: 'utm_campaign', label: 'Campanha', render: (r: Record<string, unknown>) => <span className="text-xs">{r.utm_campaign as string}</span> },
+    { key: 'utm_source', label: 'Source', render: (r: Record<string, unknown>) => <span className="text-xs text-gray-500">{r.utm_source as string}</span> },
+    ...base,
+  ]
+
+  if (nivel === 'conjunto') return [
+    { key: 'utm_medium', label: 'Conjunto', render: (r: Record<string, unknown>) => <span className="text-xs">{r.utm_medium as string}</span> },
+    { key: 'utm_campaign', label: 'Campanha', render: (r: Record<string, unknown>) => <span className="text-xs text-gray-500 truncate block max-w-28">{r.utm_campaign as string}</span> },
+    ...base,
+  ]
+
+  // anuncio
+  return [
+    { key: 'utm_content', label: 'Anúncio', render: (r: Record<string, unknown>) => <span className="text-xs">{r.utm_content as string}</span> },
+    { key: 'utm_medium', label: 'Conjunto', render: (r: Record<string, unknown>) => <span className="text-xs text-gray-500 truncate block max-w-24">{r.utm_medium as string}</span> },
+    { key: 'utm_campaign', label: 'Campanha', render: (r: Record<string, unknown>) => <span className="text-xs text-gray-500 truncate block max-w-24">{r.utm_campaign as string}</span> },
+    ...base,
+  ]
+}
+
 export default function ForecastingPage() {
   const [lancamentoId, setLancamentoId] = useState('')
   const [funil, setFunil] = useState<FunilRow | null>(null)
   const [lancamento, setLancamento] = useState<Lancamento | null>(null)
   const [comparativos, setComparativos] = useState<FunilRow[]>([])
-  const [utmData, setUtmData] = useState<UtmAnalysis[]>([])
+  const [utmData, setUtmData] = useState<Record<string, unknown>[]>([])
   const [avatarConversao, setAvatarConversao] = useState<AvatarConversao[]>([])
   const [loading, setLoading] = useState(false)
+  const [utmNivel, setUtmNivel] = useState<UtmNivel>('source')
+  const [ocultarSemLanc, setOcultarSemLanc] = useState(true)
 
   useEffect(() => {
     if (!lancamentoId) return
@@ -82,21 +126,35 @@ export default function ForecastingPage() {
       fetch(`/api/funil?id=${lancamentoId}`).then(r => r.json()),
       fetch('/api/lancamentos').then(r => r.json()),
       fetch('/api/funil').then(r => r.json()),
-      fetch(`/api/leads?id=${lancamentoId}&view=utm`).then(r => r.json()),
       fetch(`/api/avatar?id=${lancamentoId}&view=conversao`).then(r => r.json()),
-    ]).then(([funilData, lancs, hist, utm, avatar]) => {
+    ]).then(([funilData, lancs, hist, avatar]) => {
       setFunil(Array.isArray(funilData) ? (funilData[0] ?? null) : null)
       setLancamento(Array.isArray(lancs) ? (lancs.find((l: Lancamento) => l.codigo === lancamentoId) ?? null) : null)
-      setComparativos(Array.isArray(hist) ? hist.slice(0, 6) : [])
-      setUtmData(Array.isArray(utm) ? utm : [])
+      setComparativos(Array.isArray(hist) ? hist : [])
       setAvatarConversao(Array.isArray(avatar) ? avatar : [])
     }).finally(() => setLoading(false))
   }, [lancamentoId])
 
+  // Recarregar UTM quando nível muda
+  useEffect(() => {
+    if (!lancamentoId) return
+    const viewMap: Record<UtmNivel, string> = {
+      source: 'utm', campanha: 'campanha', conjunto: 'conjunto', anuncio: 'anuncio'
+    }
+    fetch(`/api/leads?id=${lancamentoId}&view=${viewMap[utmNivel]}`)
+      .then(r => r.json())
+      .then(d => setUtmData(Array.isArray(d) ? d : []))
+  }, [lancamentoId, utmNivel])
+
   const projecao = funil && lancamento ? calcularProjecao(funil, lancamento) : null
 
-  // Dados para gráfico comparativo
-  const chartData = comparativos.map(c => ({
+  // Filtrar SEM_LANCAMENTO
+  const comparativosFiltrados = (ocultarSemLanc
+    ? comparativos.filter(c => c.lancamento !== 'SEM_LANCAMENTO')
+    : comparativos
+  ).slice(0, 8)
+
+  const chartData = comparativosFiltrados.map(c => ({
     lc: c.lancamento,
     faturamento: Math.round(Number(c.faturamento_bruto)),
     investimento: Math.round(Number(c.investimento_total)),
@@ -113,7 +171,22 @@ export default function ForecastingPage() {
           </h1>
           <p className="text-sm text-gray-400 mt-0.5">Projeção algorítmica · análise de safras · perfil de conversão</p>
         </div>
-        <LancamentoSelector value={lancamentoId} onChange={setLancamentoId} />
+        <div className="flex items-center gap-2">
+          {/* Toggle SEM_LANCAMENTO */}
+          <button
+            onClick={() => setOcultarSemLanc(v => !v)}
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs border transition-colors ${
+              ocultarSemLanc
+                ? 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'
+                : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+            }`}
+            title="Mostrar/ocultar vendas sem lançamento identificado nos comparativos"
+          >
+            <EyeOff size={12} />
+            {ocultarSemLanc ? 'Sem Lançamento oculto' : 'Sem Lançamento visível'}
+          </button>
+          <LancamentoSelector value={lancamentoId} onChange={setLancamentoId} />
+        </div>
       </div>
 
       {/* Projeção */}
@@ -134,13 +207,13 @@ export default function ForecastingPage() {
             <p className="mt-3 text-xs text-gray-400">
               <span className="text-blue-400 font-medium">Leads necessários para meta:</span>{' '}
               {fmt_number(projecao.leadsParaMeta)} leads totais
-              {' '}({fmt_number(Math.max(projecao.leadsParaMeta - (funil?.total_leads ?? 0), 0))} faltam)
+              {' '}({fmt_number(Math.max(projecao.leadsParaMeta - (funil ? Number(funil.total_leads) : 0), 0))} faltam)
             </p>
           )}
         </div>
       )}
 
-      {/* Gráfico comparativo de safras */}
+      {/* Gráfico comparativo */}
       <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-5">
         <div className="flex items-center gap-2 mb-4">
           <BarChart2 size={15} className="text-purple-400" />
@@ -171,24 +244,28 @@ export default function ForecastingPage() {
         <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-5">
           <div className="flex items-center gap-2 mb-4">
             <Users size={15} className="text-amber-400" />
-            <h2 className="text-sm font-semibold text-white">UTM Source × Conversão</h2>
+            <h2 className="text-sm font-semibold text-white flex-1">UTM × Conversão</h2>
+            {/* Seletor de nível */}
+            <div className="flex rounded-lg overflow-hidden border border-gray-700 text-xs">
+              {(['source', 'campanha', 'conjunto', 'anuncio'] as UtmNivel[]).map(n => (
+                <button
+                  key={n}
+                  onClick={() => setUtmNivel(n)}
+                  className={`px-2 py-1 capitalize transition-colors ${
+                    utmNivel === n
+                      ? 'bg-amber-500/20 text-amber-300 font-medium'
+                      : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
           </div>
           <DataTable
             loading={loading}
-            columns={[
-              { key: 'utm_source', label: 'Fonte', render: r => <span className="text-xs">{r.utm_source as string}</span> },
-              { key: 'total_leads', label: 'Leads', align: 'right', sortable: true, render: r => fmt_number(r.total_leads as number) },
-              { key: 'compradores', label: 'Vendas', align: 'right', sortable: true, render: r => fmt_number(r.compradores as number) },
-              {
-                key: 'taxa_conversao', label: 'Conv.', align: 'right', sortable: true,
-                render: r => (
-                  <span className={`font-medium ${(r.taxa_conversao as number) > 2 ? 'text-emerald-400' : 'text-gray-300'}`}>
-                    {fmt_pct(r.taxa_conversao as number, 2)}
-                  </span>
-                )
-              },
-            ]}
-            data={utmData as unknown as Record<string, unknown>[]}
+            columns={utmColumns(utmNivel)}
+            data={utmData}
           />
         </div>
 
@@ -202,19 +279,20 @@ export default function ForecastingPage() {
             columns={[
               { key: 'sexo', label: 'Sexo', render: r => <span className="text-xs">{r.sexo as string || '—'}</span> },
               { key: 'faixa_etaria', label: 'Faixa', render: r => <span className="text-xs">{r.faixa_etaria as string}</span> },
-              { key: 'formacao', label: 'Formação', render: r => <span className="text-xs truncate block max-w-28">{(r.formacao as string)?.slice(0, 20) || '—'}</span> },
+              { key: 'formacao', label: 'Formação', render: r => <span className="text-xs truncate block max-w-28">{(r.formacao as string)?.slice(0, 22) || '—'}</span> },
+              { key: 'total_respostas', label: 'Respostas', align: 'right', sortable: true, render: r => fmt_number(r.total_respostas as number) },
               { key: 'compradores', label: 'Vendas', align: 'right', sortable: true, render: r => fmt_number(r.compradores as number) },
               {
                 key: 'taxa_conversao', label: 'Conv.', align: 'right', sortable: true,
                 render: r => (
-                  <span className={`font-medium ${(r.taxa_conversao as number) > 2 ? 'text-emerald-400' : 'text-gray-300'}`}>
+                  <span className={`font-medium ${Number(r.taxa_conversao) > 2 ? 'text-emerald-400' : 'text-gray-300'}`}>
                     {fmt_pct(r.taxa_conversao as number, 1)}
                   </span>
                 )
               },
             ]}
             data={avatarConversao as unknown as Record<string, unknown>[]}
-            maxRows={8}
+            maxRows={10}
           />
         </div>
       </div>

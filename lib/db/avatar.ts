@@ -43,13 +43,14 @@ export async function getAvatarDemografia(idLancamento: string) {
 export async function getAvatarConversaoCruzada(idLancamento: string) {
   const result = await prisma.$queryRaw<AvatarConversao[]>`
     SELECT
-      a.sexo,
+      COALESCE(a.sexo, 'N/A') AS sexo,
       CASE
-        WHEN a.idade < 35 THEN 'Até 34'
-        WHEN a.idade BETWEEN 35 AND 44 THEN '35-44'
-        ELSE '45+'
+        WHEN a.idade ~ '^[0-9]+$' AND a.idade::int < 35 THEN 'Até 34'
+        WHEN a.idade ~ '^[0-9]+$' AND a.idade::int BETWEEN 35 AND 44 THEN '35-44'
+        WHEN a.idade ~ '^[0-9]+$' THEN '45+'
+        ELSE 'N/A'
       END AS faixa_etaria,
-      a.formacao_universitaria AS formacao,
+      COALESCE(a.formacao_universitaria, 'N/A') AS formacao,
       COUNT(*)::int AS total_respostas,
       SUM(CASE WHEN l.virou_comprador THEN 1 ELSE 0 END)::int AS compradores,
       ROUND(
@@ -60,7 +61,7 @@ export async function getAvatarConversaoCruzada(idLancamento: string) {
     LEFT JOIN leads l ON a.email = l.email AND a.id_lancamento = l.id_lancamento
     WHERE a.id_lancamento = ${idLancamento}
     GROUP BY a.sexo, faixa_etaria, a.formacao_universitaria
-    ORDER BY compradores DESC
+    ORDER BY compradores DESC, total_respostas DESC
     LIMIT 15
   `
   return result

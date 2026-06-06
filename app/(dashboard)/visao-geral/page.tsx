@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import {
   DollarSign, Users, ShoppingCart, TrendingUp,
-  Target, BarChart2, Activity, RefreshCw
+  Target, BarChart2, Activity, RefreshCw, EyeOff
 } from 'lucide-react'
 import KpiCard from '../../../components/kpi-card'
 import FunilChart from '../../../components/funil-chart'
@@ -26,6 +26,7 @@ export default function OverviewPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
+  const [ocultarSemLanc, setOcultarSemLanc] = useState(true)
 
   useEffect(() => {
     if (!lancamentoId) return
@@ -49,9 +50,14 @@ export default function OverviewPage() {
     }).catch(err => setError(err?.message ?? 'Erro de conexão')).finally(() => setLoading(false))
   }, [lancamentoId])
 
+  // Filtrar SEM_LANCAMENTO
+  const historicoFiltrado = ocultarSemLanc
+    ? historico.filter(h => h.lancamento !== 'SEM_LANCAMENTO')
+    : historico
+
   // Calcular comparativo com lançamento anterior
-  const anteriorIdx = historico.findIndex(h => h.lancamento === lancamentoId)
-  const anterior = anteriorIdx >= 0 ? historico[anteriorIdx + 1] : null
+  const anteriorIdx = historicoFiltrado.findIndex(h => h.lancamento === lancamentoId)
+  const anterior = anteriorIdx >= 0 ? historicoFiltrado[anteriorIdx + 1] : null
 
   const trendFaturamento = anterior && funil
     ? ((Number(funil.faturamento_bruto) - Number(anterior.faturamento_bruto)) / Number(anterior.faturamento_bruto)) * 100
@@ -78,6 +84,18 @@ export default function OverviewPage() {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setOcultarSemLanc(v => !v)}
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs border transition-colors ${
+              ocultarSemLanc
+                ? 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'
+                : 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+            }`}
+            title="Mostrar/ocultar Sem Lançamento no histórico"
+          >
+            <EyeOff size={12} />
+            {ocultarSemLanc ? 'Sem Lanç. oculto' : 'Sem Lanç. visível'}
+          </button>
           {lastUpdate && (
             <div className="flex items-center gap-1.5 text-xs text-gray-500">
               <RefreshCw size={11} />
@@ -189,7 +207,7 @@ export default function OverviewPage() {
                 </tr>
               </thead>
               <tbody>
-                {historico.map(row => (
+                {historicoFiltrado.map(row => (
                   <tr
                     key={row.lancamento}
                     className={`border-b border-gray-800/60 transition-colors
