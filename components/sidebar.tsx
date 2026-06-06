@@ -12,11 +12,13 @@ import {
   ShieldCheck,
   ChevronRight,
   Zap,
+  BarChart2,
 } from 'lucide-react'
 
 const NAV = [
   { href: '/visao-geral',   label: 'Visão Geral',      icon: LayoutDashboard, desc: 'KPIs consolidados' },
   { href: '/tempo-real',    label: 'Tempo Real',       icon: Activity,        desc: 'Funil ao vivo' },
+  { href: '/trafego',       label: 'Tráfego Meta',     icon: BarChart2,       desc: 'Captação · Aquecimento · Venda' },
   { href: '/forecasting',   label: 'Forecasting',      icon: TrendingUp,      desc: 'Projeções e comparativos' },
   { href: '/financeiro',    label: 'DRE Dinâmico',     icon: DollarSign,      desc: 'Conciliação financeira' },
   { href: '/recuperacao',   label: 'Recuperação',      icon: RefreshCw,       desc: 'Inadimplência e chargeback' },

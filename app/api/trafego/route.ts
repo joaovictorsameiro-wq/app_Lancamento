@@ -4,6 +4,8 @@ import {
   getTrafegoAgregado,
   getTrafegoAnuncios,
   getTrafegoDiario,
+  getTrafegoBreakdown,
+  getTrafegoCampanhas,
 } from '../../../lib/db/trafego'
 
 export async function GET(req: NextRequest) {
@@ -15,7 +17,9 @@ export async function GET(req: NextRequest) {
 
   try {
     let data
-    if (view === 'agregado') data = await getTrafegoAgregado(id)
+    if (view === 'breakdown') data = await getTrafegoBreakdown(id)
+    else if (view === 'campanhas') data = await getTrafegoCampanhas(id)
+    else if (view === 'agregado') data = await getTrafegoAgregado(id)
     else if (view === 'anuncios') data = await getTrafegoAnuncios(id)
     else if (view === 'diario') data = await getTrafegoDiario(id)
     else data = await getTrafegoByLancamento(id)
