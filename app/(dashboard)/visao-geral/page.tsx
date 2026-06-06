@@ -54,11 +54,11 @@ export default function OverviewPage() {
   const anterior = anteriorIdx >= 0 ? historico[anteriorIdx + 1] : null
 
   const trendFaturamento = anterior && funil
-    ? ((funil.faturamento_bruto - anterior.faturamento_bruto) / anterior.faturamento_bruto) * 100
+    ? ((Number(funil.faturamento_bruto) - Number(anterior.faturamento_bruto)) / Number(anterior.faturamento_bruto)) * 100
     : undefined
 
   const metaPct = lancamento?.meta_faturamento && funil
-    ? (funil.faturamento_bruto / lancamento.meta_faturamento) * 100
+    ? (Number(funil.faturamento_bruto) / Number(lancamento.meta_faturamento)) * 100
     : null
 
   return (
@@ -143,7 +143,7 @@ export default function OverviewPage() {
           subtitle={funil ? `Investido: ${fmt_currency(funil.investimento_total, true)}` : undefined}
           higherIsBetter={true}
           icon={TrendingUp}
-          accent={funil && funil.roi > 1 ? 'emerald' : 'red'}
+          accent={funil && Number(funil.roi) > 1 ? 'emerald' : 'red'}
           loading={loading}
         />
       </div>
@@ -205,7 +205,7 @@ export default function OverviewPage() {
                     <td className="py-2 pr-3 tabular-nums">{fmt_currency(row.cpl)}</td>
                     <td className="py-2 pr-3 tabular-nums">{fmt_number(row.total_vendas)}</td>
                     <td className="py-2 pr-3 tabular-nums">{fmt_currency(row.faturamento_bruto, true)}</td>
-                    <td className={`py-2 pr-3 tabular-nums font-medium ${row.roi > 1 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    <td className={`py-2 pr-3 tabular-nums font-medium ${Number(row.roi) > 1 ? 'text-emerald-400' : 'text-red-400'}`}>
                       {fmt_pct(row.roi * 100, 0)}
                     </td>
                     <td className="py-2 tabular-nums">{fmt_pct(row.taxa_conversao_pct, 2)}</td>
