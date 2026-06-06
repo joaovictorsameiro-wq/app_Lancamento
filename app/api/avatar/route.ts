@@ -1,16 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAvatarDemografia, getAvatarConversaoCruzada } from '../../../lib/db/avatar'
+import { getAvatarDemografia, getAvatarConversaoCruzada, type AvatarDimensao } from '../../../lib/db/avatar'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
-  const id = searchParams.get('id')
-  const view = searchParams.get('view') ?? 'demografia'
+  const id        = searchParams.get('id')
+  const view      = searchParams.get('view') ?? 'demografia'
+  const dimensao  = (searchParams.get('dimensao') ?? 'formacao') as AvatarDimensao
 
   if (!id) return NextResponse.json({ error: 'id obrigatório' }, { status: 400 })
 
   try {
     const data = view === 'conversao'
-      ? await getAvatarConversaoCruzada(id)
+      ? await getAvatarConversaoCruzada(id, dimensao)
       : await getAvatarDemografia(id)
     return NextResponse.json(data)
   } catch (err) {

@@ -10,14 +10,15 @@ export async function getAvatarDemografia(idLancamento: string) {
     prisma.$queryRaw<{ faixa: string; count: number }[]>`
       SELECT
         CASE
-          WHEN idade < 25 THEN 'Até 24'
-          WHEN idade BETWEEN 25 AND 34 THEN '25-34'
-          WHEN idade BETWEEN 35 AND 44 THEN '35-44'
-          WHEN idade BETWEEN 45 AND 54 THEN '45-54'
-          ELSE '55+'
+          WHEN idade ~ '^[0-9]+$' AND idade::int < 25 THEN 'Até 24'
+          WHEN idade ~ '^[0-9]+$' AND idade::int BETWEEN 25 AND 34 THEN '25-34'
+          WHEN idade ~ '^[0-9]+$' AND idade::int BETWEEN 35 AND 44 THEN '35-44'
+          WHEN idade ~ '^[0-9]+$' AND idade::int BETWEEN 45 AND 54 THEN '45-54'
+          WHEN idade ~ '^[0-9]+$' THEN '55+'
+          ELSE 'N/A'
         END AS faixa,
         COUNT(*)::int AS count
-      FROM avatar WHERE id_lancamento = ${idLancamento} AND idade IS NOT NULL
+      FROM avatar WHERE id_lancamento = ${idLancamento}
       GROUP BY faixa ORDER BY faixa
     `,
     prisma.$queryRaw<{ estado: string; count: number }[]>`
@@ -40,37 +41,172 @@ export async function getAvatarDemografia(idLancamento: string) {
   return { sexo, faixa_etaria, estado, formacao, renda }
 }
 
-export async function getAvatarConversaoCruzada(idLancamento: string) {
-  const result = await prisma.$queryRaw<AvatarConversao[]>`
-    SELECT
-      COALESCE(a.sexo, 'N/A') AS sexo,
-      CASE
-        WHEN a.idade ~ '^[0-9]+$' AND a.idade::int < 35 THEN 'Até 34'
-        WHEN a.idade ~ '^[0-9]+$' AND a.idade::int BETWEEN 35 AND 44 THEN '35-44'
-        WHEN a.idade ~ '^[0-9]+$' THEN '45+'
-        ELSE 'N/A'
-      END AS faixa_etaria,
-      COALESCE(a.formacao_universitaria, 'N/A') AS formacao,
-      COUNT(*)::int AS total_respostas,
-      SUM(CASE WHEN l.virou_comprador THEN 1 ELSE 0 END)::int AS compradores,
-      ROUND(
-        SUM(CASE WHEN l.virou_comprador THEN 1 ELSE 0 END)::numeric /
-        NULLIF(COUNT(*), 0) * 100, 1
-      )::float AS taxa_conversao
-    FROM avatar a
-    LEFT JOIN leads l ON a.email = l.email AND a.id_lancamento = l.id_lancamento
-    WHERE a.id_lancamento = ${idLancamento}
-    GROUP BY a.sexo, faixa_etaria, a.formacao_universitaria
-    ORDER BY compradores DESC, total_respostas DESC
-    LIMIT 15
-  `
-  return result
+// Dimensões disponíveis para cruzamento com conversão
+export type AvatarDimensao =
+  | 'formacao'
+  | 'faixa_etaria'
+  | 'sexo'
+  | 'estado'
+  | 'renda'
+  | 'experiencia'
+  | 'mais_atrativo'
+  | 'filhos'
+
+export const AVATAR_DIMENSAO_LABELS: Record<AvatarDimensao, string> = {
+  formacao:      'Formação',
+  faixa_etaria:  'Faixa Etária',
+  sexo:          'Sexo',
+  estado:        'Estado',
+  renda:         'Renda Familiar',
+  experiencia:   'Experiência Profissional',
+  mais_atrativo: 'Mais Atrativo no Curso',
+  filhos:        'Possui Filhos',
+}
+
+// Cada dimensão tem sua própria query para evitar SQL injection via column name
+async function queryPorDimensao(idLancamento: string, dimensao: AvatarDimensao): Promise<AvatarConversao[]> {
+  // Template comum: JOIN avatar → compradores (vendas reais)
+  // Retorna: dimensao_valor, total_respostas, compradores, taxa_conversao
+
+  switch (dimensao) {
+    case 'formacao':
+      return prisma.$queryRaw<AvatarConversao[]>`
+        SELECT
+          COALESCE(a.formacao_universitaria, 'N/A') AS dimensao_valor,
+          COUNT(*)::int AS total_respostas,
+          COUNT(DISTINCT CASE WHEN c.hotmart_transaction IS NOT NULL THEN a.email END)::int AS compradores,
+          ROUND(COUNT(DISTINCT CASE WHEN c.hotmart_transaction IS NOT NULL THEN a.email END)::numeric
+            / NULLIF(COUNT(*),0)*100, 1)::float AS taxa_conversao
+        FROM avatar a
+        LEFT JOIN compradores c ON c.email = a.email AND c.id_lancamento = a.id_lancamento AND c.status_pagamento = 'aprovado'
+        WHERE a.id_lancamento = ${idLancamento}
+        GROUP BY a.formacao_universitaria
+        ORDER BY compradores DESC, total_respostas DESC
+        LIMIT 20
+      `
+
+    case 'faixa_etaria':
+      return prisma.$queryRaw<AvatarConversao[]>`
+        SELECT
+          CASE
+            WHEN a.idade ~ '^[0-9]+$' AND a.idade::int < 35 THEN 'Até 34'
+            WHEN a.idade ~ '^[0-9]+$' AND a.idade::int BETWEEN 35 AND 44 THEN '35-44'
+            WHEN a.idade ~ '^[0-9]+$' THEN '45+'
+            ELSE 'N/A'
+          END AS dimensao_valor,
+          COUNT(*)::int AS total_respostas,
+          COUNT(DISTINCT CASE WHEN c.hotmart_transaction IS NOT NULL THEN a.email END)::int AS compradores,
+          ROUND(COUNT(DISTINCT CASE WHEN c.hotmart_transaction IS NOT NULL THEN a.email END)::numeric
+            / NULLIF(COUNT(*),0)*100, 1)::float AS taxa_conversao
+        FROM avatar a
+        LEFT JOIN compradores c ON c.email = a.email AND c.id_lancamento = a.id_lancamento AND c.status_pagamento = 'aprovado'
+        WHERE a.id_lancamento = ${idLancamento}
+        GROUP BY dimensao_valor
+        ORDER BY compradores DESC, total_respostas DESC
+      `
+
+    case 'sexo':
+      return prisma.$queryRaw<AvatarConversao[]>`
+        SELECT
+          COALESCE(a.sexo, 'N/A') AS dimensao_valor,
+          COUNT(*)::int AS total_respostas,
+          COUNT(DISTINCT CASE WHEN c.hotmart_transaction IS NOT NULL THEN a.email END)::int AS compradores,
+          ROUND(COUNT(DISTINCT CASE WHEN c.hotmart_transaction IS NOT NULL THEN a.email END)::numeric
+            / NULLIF(COUNT(*),0)*100, 1)::float AS taxa_conversao
+        FROM avatar a
+        LEFT JOIN compradores c ON c.email = a.email AND c.id_lancamento = a.id_lancamento AND c.status_pagamento = 'aprovado'
+        WHERE a.id_lancamento = ${idLancamento}
+        GROUP BY a.sexo
+        ORDER BY compradores DESC, total_respostas DESC
+      `
+
+    case 'estado':
+      return prisma.$queryRaw<AvatarConversao[]>`
+        SELECT
+          COALESCE(a.estado, 'N/A') AS dimensao_valor,
+          COUNT(*)::int AS total_respostas,
+          COUNT(DISTINCT CASE WHEN c.hotmart_transaction IS NOT NULL THEN a.email END)::int AS compradores,
+          ROUND(COUNT(DISTINCT CASE WHEN c.hotmart_transaction IS NOT NULL THEN a.email END)::numeric
+            / NULLIF(COUNT(*),0)*100, 1)::float AS taxa_conversao
+        FROM avatar a
+        LEFT JOIN compradores c ON c.email = a.email AND c.id_lancamento = a.id_lancamento AND c.status_pagamento = 'aprovado'
+        WHERE a.id_lancamento = ${idLancamento}
+        GROUP BY a.estado
+        ORDER BY compradores DESC, total_respostas DESC
+        LIMIT 20
+      `
+
+    case 'renda':
+      return prisma.$queryRaw<AvatarConversao[]>`
+        SELECT
+          COALESCE(a.renda_familiar, 'N/A') AS dimensao_valor,
+          COUNT(*)::int AS total_respostas,
+          COUNT(DISTINCT CASE WHEN c.hotmart_transaction IS NOT NULL THEN a.email END)::int AS compradores,
+          ROUND(COUNT(DISTINCT CASE WHEN c.hotmart_transaction IS NOT NULL THEN a.email END)::numeric
+            / NULLIF(COUNT(*),0)*100, 1)::float AS taxa_conversao
+        FROM avatar a
+        LEFT JOIN compradores c ON c.email = a.email AND c.id_lancamento = a.id_lancamento AND c.status_pagamento = 'aprovado'
+        WHERE a.id_lancamento = ${idLancamento}
+        GROUP BY a.renda_familiar
+        ORDER BY compradores DESC, total_respostas DESC
+      `
+
+    case 'experiencia':
+      return prisma.$queryRaw<AvatarConversao[]>`
+        SELECT
+          COALESCE(a.experiencia_profissional, 'N/A') AS dimensao_valor,
+          COUNT(*)::int AS total_respostas,
+          COUNT(DISTINCT CASE WHEN c.hotmart_transaction IS NOT NULL THEN a.email END)::int AS compradores,
+          ROUND(COUNT(DISTINCT CASE WHEN c.hotmart_transaction IS NOT NULL THEN a.email END)::numeric
+            / NULLIF(COUNT(*),0)*100, 1)::float AS taxa_conversao
+        FROM avatar a
+        LEFT JOIN compradores c ON c.email = a.email AND c.id_lancamento = a.id_lancamento AND c.status_pagamento = 'aprovado'
+        WHERE a.id_lancamento = ${idLancamento}
+        GROUP BY a.experiencia_profissional
+        ORDER BY compradores DESC, total_respostas DESC
+      `
+
+    case 'mais_atrativo':
+      return prisma.$queryRaw<AvatarConversao[]>`
+        SELECT
+          COALESCE(a.mais_atrativo, 'N/A') AS dimensao_valor,
+          COUNT(*)::int AS total_respostas,
+          COUNT(DISTINCT CASE WHEN c.hotmart_transaction IS NOT NULL THEN a.email END)::int AS compradores,
+          ROUND(COUNT(DISTINCT CASE WHEN c.hotmart_transaction IS NOT NULL THEN a.email END)::numeric
+            / NULLIF(COUNT(*),0)*100, 1)::float AS taxa_conversao
+        FROM avatar a
+        LEFT JOIN compradores c ON c.email = a.email AND c.id_lancamento = a.id_lancamento AND c.status_pagamento = 'aprovado'
+        WHERE a.id_lancamento = ${idLancamento}
+        GROUP BY a.mais_atrativo
+        ORDER BY compradores DESC, total_respostas DESC
+      `
+
+    case 'filhos':
+      return prisma.$queryRaw<AvatarConversao[]>`
+        SELECT
+          COALESCE(a.possui_filhos, 'N/A') AS dimensao_valor,
+          COUNT(*)::int AS total_respostas,
+          COUNT(DISTINCT CASE WHEN c.hotmart_transaction IS NOT NULL THEN a.email END)::int AS compradores,
+          ROUND(COUNT(DISTINCT CASE WHEN c.hotmart_transaction IS NOT NULL THEN a.email END)::numeric
+            / NULLIF(COUNT(*),0)*100, 1)::float AS taxa_conversao
+        FROM avatar a
+        LEFT JOIN compradores c ON c.email = a.email AND c.id_lancamento = a.id_lancamento AND c.status_pagamento = 'aprovado'
+        WHERE a.id_lancamento = ${idLancamento}
+        GROUP BY a.possui_filhos
+        ORDER BY compradores DESC, total_respostas DESC
+      `
+  }
+}
+
+export async function getAvatarConversaoCruzada(
+  idLancamento: string,
+  dimensao: AvatarDimensao = 'formacao'
+): Promise<AvatarConversao[]> {
+  return queryPorDimensao(idLancamento, dimensao)
 }
 
 export type AvatarConversao = {
-  sexo: string
-  faixa_etaria: string
-  formacao: string
+  dimensao_valor: string
   total_respostas: number
   compradores: number
   taxa_conversao: number

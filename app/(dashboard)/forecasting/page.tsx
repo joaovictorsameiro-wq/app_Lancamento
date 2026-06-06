@@ -8,7 +8,8 @@ import LancamentoSelector from '../../../components/lancamento-selector'
 import DataTable from '../../../components/data-table'
 import { fmt_currency, fmt_number, fmt_pct } from '../../../lib/format'
 import type { FunilRow } from '../../../lib/db/lancamentos'
-import type { AvatarConversao } from '../../../lib/db/avatar'
+import type { AvatarConversao, AvatarDimensao } from '../../../lib/db/avatar'
+import { AVATAR_DIMENSAO_LABELS } from '../../../lib/db/avatar'
 
 type Lancamento = {
   codigo: string
@@ -118,6 +119,7 @@ export default function ForecastingPage() {
   const [loading, setLoading] = useState(false)
   const [utmNivel, setUtmNivel] = useState<UtmNivel>('source')
   const [ocultarSemLanc, setOcultarSemLanc] = useState(true)
+  const [avatarDimensao, setAvatarDimensao] = useState<AvatarDimensao>('formacao')
 
   useEffect(() => {
     if (!lancamentoId) return
@@ -126,7 +128,7 @@ export default function ForecastingPage() {
       fetch(`/api/funil?id=${lancamentoId}`).then(r => r.json()),
       fetch('/api/lancamentos').then(r => r.json()),
       fetch('/api/funil').then(r => r.json()),
-      fetch(`/api/avatar?id=${lancamentoId}&view=conversao`).then(r => r.json()),
+      fetch(`/api/avatar?id=${lancamentoId}&view=conversao&dimensao=${avatarDimensao}`).then(r => r.json()),
     ]).then(([funilData, lancs, hist, avatar]) => {
       setFunil(Array.isArray(funilData) ? (funilData[0] ?? null) : null)
       setLancamento(Array.isArray(lancs) ? (lancs.find((l: Lancamento) => l.codigo === lancamentoId) ?? null) : null)
@@ -145,6 +147,14 @@ export default function ForecastingPage() {
       .then(r => r.json())
       .then(d => setUtmData(Array.isArray(d) ? d : []))
   }, [lancamentoId, utmNivel])
+
+  // Recarregar avatar quando dimensão muda
+  useEffect(() => {
+    if (!lancamentoId) return
+    fetch(`/api/avatar?id=${lancamentoId}&view=conversao&dimensao=${avatarDimensao}`)
+      .then(r => r.json())
+      .then(d => setAvatarConversao(Array.isArray(d) ? d : []))
+  }, [lancamentoId, avatarDimensao])
 
   const projecao = funil && lancamento ? calcularProjecao(funil, lancamento) : null
 
@@ -272,18 +282,30 @@ export default function ForecastingPage() {
         <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-5">
           <div className="flex items-center gap-2 mb-4">
             <Target size={15} className="text-emerald-400" />
-            <h2 className="text-sm font-semibold text-white">Perfil de Avatar × Conversão</h2>
+            <h2 className="text-sm font-semibold text-white flex-1">Avatar × Conversão</h2>
+            {/* Seletor de dimensão */}
+            <select
+              value={avatarDimensao}
+              onChange={e => setAvatarDimensao(e.target.value as AvatarDimensao)}
+              className="rounded-lg bg-gray-800 border border-gray-700 px-2 py-1 text-xs text-gray-300"
+            >
+              {(Object.entries(AVATAR_DIMENSAO_LABELS) as [AvatarDimensao, string][]).map(([k, v]) => (
+                <option key={k} value={k}>{v}</option>
+              ))}
+            </select>
           </div>
           <DataTable
             loading={loading}
             columns={[
-              { key: 'sexo', label: 'Sexo', render: r => <span className="text-xs">{r.sexo as string || '—'}</span> },
-              { key: 'faixa_etaria', label: 'Faixa', render: r => <span className="text-xs">{r.faixa_etaria as string}</span> },
-              { key: 'formacao', label: 'Formação', render: r => <span className="text-xs truncate block max-w-28">{(r.formacao as string)?.slice(0, 22) || '—'}</span> },
-              { key: 'total_respostas', label: 'Respostas', align: 'right', sortable: true, render: r => fmt_number(r.total_respostas as number) },
-              { key: 'compradores', label: 'Vendas', align: 'right', sortable: true, render: r => fmt_number(r.compradores as number) },
               {
-                key: 'taxa_conversao', label: 'Conv.', align: 'right', sortable: true,
+                key: 'dimensao_valor',
+                label: AVATAR_DIMENSAO_LABELS[avatarDimensao],
+                render: r => <span className="text-xs truncate block max-w-40">{(r.dimensao_valor as string) || '—'}</span>
+              },
+              { key: 'total_respostas', label: 'Respostas', align: 'right' as const, sortable: true, render: r => fmt_number(r.total_respostas as number) },
+              { key: 'compradores', label: 'Vendas', align: 'right' as const, sortable: true, render: r => fmt_number(r.compradores as number) },
+              {
+                key: 'taxa_conversao', label: 'Conv.', align: 'right' as const, sortable: true,
                 render: r => (
                   <span className={`font-medium ${Number(r.taxa_conversao) > 2 ? 'text-emerald-400' : 'text-gray-300'}`}>
                     {fmt_pct(r.taxa_conversao as number, 1)}
@@ -292,7 +314,7 @@ export default function ForecastingPage() {
               },
             ]}
             data={avatarConversao as unknown as Record<string, unknown>[]}
-            maxRows={10}
+            maxRows={12}
           />
         </div>
       </div>
