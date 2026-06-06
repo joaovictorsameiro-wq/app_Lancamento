@@ -31,19 +31,25 @@ function calcularProjecao(funil: FunilRow, lancamento: Lancamento | null) {
   const diasPassados = Math.max((hoje.getTime() - inicio.getTime()) / 86400000, 1)
   const diasRestantes = Math.max(diasTotais - diasPassados, 0)
 
-  const velocidadeLeadsDia = funil.total_leads / diasPassados
-  const velocidadeVendasDia = funil.total_vendas / diasPassados
-  const velocidadeGastoDia = funil.investimento_total / diasPassados
+  const totalLeads = Number(funil.total_leads)
+  const totalVendas = Number(funil.total_vendas)
+  const investimentoTotal = Number(funil.investimento_total)
+  const faturamentoBruto = Number(funil.faturamento_bruto)
+  const taxaConversao = Number(funil.taxa_conversao_pct)
 
-  const leadsProjetados = funil.total_leads + velocidadeLeadsDia * diasRestantes
-  const vendasProjetadas = funil.total_vendas + velocidadeVendasDia * diasRestantes
-  const gastoProjetado = funil.investimento_total + velocidadeGastoDia * diasRestantes
+  const velocidadeLeadsDia = totalLeads / diasPassados
+  const velocidadeVendasDia = totalVendas / diasPassados
+  const velocidadeGastoDia = investimentoTotal / diasPassados
 
-  const ticketMedio = funil.total_vendas > 0 ? funil.faturamento_bruto / funil.total_vendas : 0
+  const leadsProjetados = totalLeads + velocidadeLeadsDia * diasRestantes
+  const vendasProjetadas = totalVendas + velocidadeVendasDia * diasRestantes
+  const gastoProjetado = investimentoTotal + velocidadeGastoDia * diasRestantes
+
+  const ticketMedio = totalVendas > 0 ? faturamentoBruto / totalVendas : 0
   const faturamentoProjetado = vendasProjetadas * ticketMedio
 
   const leadsParaMeta = lancamento.meta_faturamento && ticketMedio > 0
-    ? (lancamento.meta_faturamento / ticketMedio) / funil.taxa_conversao_pct * 100
+    ? (lancamento.meta_faturamento / ticketMedio) / taxaConversao * 100
     : null
 
   return {
@@ -79,11 +85,11 @@ export default function ForecastingPage() {
       fetch(`/api/leads?id=${lancamentoId}&view=utm`).then(r => r.json()),
       fetch(`/api/avatar?id=${lancamentoId}&view=conversao`).then(r => r.json()),
     ]).then(([funilData, lancs, hist, utm, avatar]) => {
-      setFunil(funilData[0] ?? null)
-      setLancamento(lancs.find((l: Lancamento) => l.codigo === lancamentoId) ?? null)
-      setComparativos(hist.slice(0, 6))
-      setUtmData(utm)
-      setAvatarConversao(avatar)
+      setFunil(Array.isArray(funilData) ? (funilData[0] ?? null) : null)
+      setLancamento(Array.isArray(lancs) ? (lancs.find((l: Lancamento) => l.codigo === lancamentoId) ?? null) : null)
+      setComparativos(Array.isArray(hist) ? hist.slice(0, 6) : [])
+      setUtmData(Array.isArray(utm) ? utm : [])
+      setAvatarConversao(Array.isArray(avatar) ? avatar : [])
     }).finally(() => setLoading(false))
   }, [lancamentoId])
 
@@ -92,9 +98,9 @@ export default function ForecastingPage() {
   // Dados para gráfico comparativo
   const chartData = comparativos.map(c => ({
     lc: c.lancamento,
-    faturamento: Math.round(c.faturamento_bruto),
-    investimento: Math.round(c.investimento_total),
-    leads: c.total_leads,
+    faturamento: Math.round(Number(c.faturamento_bruto)),
+    investimento: Math.round(Number(c.investimento_total)),
+    leads: Number(c.total_leads),
   })).reverse()
 
   return (
