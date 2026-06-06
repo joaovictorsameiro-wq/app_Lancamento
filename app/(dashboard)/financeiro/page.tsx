@@ -44,8 +44,8 @@ export default function FinanceiroPage() {
     }).finally(() => setLoading(false))
   }, [lancamentoId])
 
-  const faturamentoBruto = funil?.faturamento_bruto ?? 0
-  const investimentoTrafego = funil?.investimento_total ?? 0
+  const faturamentoBruto = Number(funil?.faturamento_bruto ?? 0)
+  const investimentoTrafego = Number(funil?.investimento_total ?? 0)
 
   // Custos calculados
   const taxaHotmart = faturamentoBruto * (TAXA_HOTMART / 100)
@@ -69,8 +69,8 @@ export default function FinanceiroPage() {
     const key = s.metodo_pagamento || 'N/A'
     acc[key] = acc[key] || { quantidade: 0, valor: 0 }
     if (s.status === 'aprovado') {
-      acc[key].quantidade += s.quantidade
-      acc[key].valor += s.valor_bruto_total
+      acc[key].quantidade += Number(s.quantidade)
+      acc[key].valor += Number(s.valor_bruto_total)
     }
     return acc
   }, {})
@@ -141,7 +141,12 @@ export default function FinanceiroPage() {
               <DRERow key={c.id} label={`(-) ${c.descricao} (${c.valor}%)`} value={faturamentoBruto * c.valor / 100} isNegative indent />
             ))}
             <DRERow label="(=) Lucro Líquido" value={lucroLiquido} bold highlight />
-            <DRERow label="Margem de Contribuição" value={margemContribuicao} bold />
+            <div className="flex items-center justify-between py-2 border-b border-gray-800/60">
+              <span className="text-sm font-semibold text-white">Margem de Contribuição</span>
+              <span className={`text-sm tabular-nums font-medium ${margemContribuicao > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {fmt_pct(margemContribuicao, 1)}
+              </span>
+            </div>
           </div>
         </div>
 
