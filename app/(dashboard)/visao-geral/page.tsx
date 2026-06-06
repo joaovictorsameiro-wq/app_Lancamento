@@ -50,7 +50,7 @@ export default function OverviewPage() {
   }, [lancamentoId])
 
   // Calcular comparativo com lançamento anterior
-  const anteriorIdx = historico.findIndex(h => h.id_lancamento === lancamentoId)
+  const anteriorIdx = historico.findIndex(h => h.lancamento === lancamentoId)
   const anterior = anteriorIdx >= 0 ? historico[anteriorIdx + 1] : null
 
   const trendFaturamento = anterior && funil
@@ -191,15 +191,15 @@ export default function OverviewPage() {
               <tbody>
                 {historico.map(row => (
                   <tr
-                    key={row.id_lancamento}
+                    key={row.lancamento}
                     className={`border-b border-gray-800/60 transition-colors
-                      ${row.id_lancamento === lancamentoId
+                      ${row.lancamento === lancamentoId
                         ? 'bg-emerald-500/5 text-emerald-300'
                         : 'text-gray-300 hover:bg-gray-800/30'
                       }
                     `}
                   >
-                    <td className="py-2 pr-3 font-bold">{row.id_lancamento}</td>
+                    <td className="py-2 pr-3 font-bold">{row.lancamento}</td>
                     <td className="py-2 pr-3 tabular-nums">{fmt_currency(row.investimento_total, true)}</td>
                     <td className="py-2 pr-3 tabular-nums">{fmt_number(row.total_leads)}</td>
                     <td className="py-2 pr-3 tabular-nums">{fmt_currency(row.cpl)}</td>

@@ -14,26 +14,32 @@ export async function getLancamentoAtual() {
 }
 
 export async function getFunilLancamento(idLancamento?: string) {
+  // A view usa coluna "lancamento" (não "id_lancamento")
   if (idLancamento) {
     return prisma.$queryRaw<FunilRow[]>`
       SELECT * FROM funil_lancamento
-      WHERE id_lancamento = ${idLancamento}
-      ORDER BY id_lancamento DESC
+      WHERE lancamento = ${idLancamento}
+      ORDER BY lancamento DESC
     `
   }
   return prisma.$queryRaw<FunilRow[]>`
-    SELECT * FROM funil_lancamento ORDER BY id_lancamento DESC
+    SELECT * FROM funil_lancamento ORDER BY lancamento DESC
   `
 }
 
 export type FunilRow = {
-  id_lancamento: string
+  lancamento: string        // nome real na view
+  nome_lancamento: string
+  status: string
   investimento_total: number
+  impressoes_total: number
+  cliques_total: number
   total_leads: number
   cpl: number
   respostas_avatar: number
   total_vendas: number
   faturamento_bruto: number
+  faturamento_liquido: number
   taxa_conversao_pct: number
   roi: number
 }

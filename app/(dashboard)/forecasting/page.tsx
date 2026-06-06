@@ -91,7 +91,7 @@ export default function ForecastingPage() {
 
   // Dados para gráfico comparativo
   const chartData = comparativos.map(c => ({
-    lc: c.id_lancamento,
+    lc: c.lancamento,
     faturamento: Math.round(c.faturamento_bruto),
     investimento: Math.round(c.investimento_total),
     leads: c.total_leads,
