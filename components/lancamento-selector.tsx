@@ -14,6 +14,25 @@ interface Props {
   onChange: (codigo: string) => void
 }
 
+// Ordena: LC (numérico desc) → LS → LR → RENOVA → SEM_LANCAMENTO
+function sortLancamentos(list: Lancamento[]): Lancamento[] {
+  const rank = (codigo: string) => {
+    if (codigo.startsWith('LC')) return 0
+    if (codigo.startsWith('LS')) return 1
+    if (codigo.startsWith('LR')) return 2
+    if (codigo === 'RENOVA')     return 3
+    return 4 // SEM_LANCAMENTO e outros
+  }
+  return [...list].sort((a, b) => {
+    const ra = rank(a.codigo), rb = rank(b.codigo)
+    if (ra !== rb) return ra - rb
+    // Dentro do mesmo grupo: numérico desc (LC25 > LC24 > ...)
+    const na = parseInt(a.codigo.replace(/\D/g, '')) || 0
+    const nb = parseInt(b.codigo.replace(/\D/g, '')) || 0
+    return nb - na
+  })
+}
+
 export default function LancamentoSelector({ value, onChange }: Props) {
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([])
   const [open, setOpen] = useState(false)
@@ -28,8 +47,14 @@ export default function LancamentoSelector({ value, onChange }: Props) {
           setError('Erro ao carregar lançamentos')
           return
         }
-        setLancamentos(data)
-        if (!value && data.length > 0) onChange(data[0].codigo)
+        const sorted = sortLancamentos(data)
+        setLancamentos(sorted)
+        if (!value) {
+          // Seleciona o lançamento ativo; se não houver, o primeiro LC
+          const ativo = sorted.find(l => l.status === 'ativo')
+          const defaultLC = ativo ?? sorted.find(l => l.codigo.startsWith('LC')) ?? sorted[0]
+          if (defaultLC) onChange(defaultLC.codigo)
+        }
       })
       .catch(() => setError('Falha na conexão com o banco'))
       .finally(() => setLoading(false))
