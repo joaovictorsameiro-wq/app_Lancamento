@@ -108,7 +108,10 @@ export default function TrafegoPage() {
 
   const tiposSecundarios = ['aquecimento', 'distribuicao', 'lembrete', 'remarketing', 'venda', 'outros']
   const secundarios = tiposSecundarios
-    .map(t => ({ tipo: t, ...((breakdown.find(r => r.tipo === t)) ?? { gasto: 0, leads: 0, impressoes: 0, cliques: 0 }) }))
+    .map(t => {
+      const row = breakdown.find(r => r.tipo === t)
+      return { tipo: t, gasto: row?.gasto ?? 0, leads: row?.leads ?? 0, impressoes: row?.impressoes ?? 0, cliques: row?.cliques ?? 0 }
+    })
     .filter(r => r.gasto > 0)
 
   // Filtro de campanhas
