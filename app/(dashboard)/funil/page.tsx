@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import {
   GitFork, Plus, Save, Trash2, Layers, Type,
-  RefreshCw, Loader2, Check, X, ChevronDown,
+  RefreshCw, Loader2, Check, X,
   BarChart2,
 } from 'lucide-react'
 import LancamentoSelector from '../../../components/lancamento-selector'
@@ -102,15 +102,17 @@ function CanvasNode({ node, selected, onSelect, onDrag }: {
       onClick={handleClick}
     >
       <div className="h-1 w-full shrink-0" style={{ backgroundColor: node.cor }} />
-      <div className="flex-1 p-3 flex flex-col justify-between min-h-0">
-        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider truncate">{node.titulo}</p>
-        <div>
-          <p className="text-xl font-bold text-white tabular-nums leading-tight">{fmt(node.metrica)}</p>
-          {node.unidade && node.unidade !== 'R$' && node.unidade !== '%' && node.unidade !== 'x' && (
-            <p className="text-[10px] text-gray-500 mt-0.5">{node.unidade}</p>
-          )}
+      <div className="flex-1 px-3 py-2 flex flex-col justify-between min-h-0">
+        <div className="flex items-center justify-between gap-1">
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider truncate">{node.titulo}</p>
           {node.fonte === 'banco' && (
-            <span className="inline-block mt-1 text-[9px] text-emerald-500 border border-emerald-500/30 rounded px-1">ao vivo</span>
+            <span className="text-[8px] text-emerald-500 border border-emerald-500/30 rounded px-1 shrink-0">ao vivo</span>
+          )}
+        </div>
+        <div>
+          <p className="text-lg font-bold text-white tabular-nums leading-tight">{fmt(node.metrica)}</p>
+          {node.unidade && node.unidade !== 'R$' && node.unidade !== '%' && node.unidade !== 'x' && (
+            <p className="text-[10px] text-gray-500">{node.unidade}</p>
           )}
         </div>
       </div>
@@ -316,9 +318,9 @@ export default function FunilPage() {
         { id: 'n2', type: 'etapa', titulo: 'Leads',           metrica: leads,  unidade: 'leads',  cor: '#8b5cf6', x: 300, y: 200, width: 180, height: 100, fonte: 'banco' },
         { id: 'n3', type: 'etapa', titulo: 'Vendas',          metrica: vendas, unidade: 'alunos', cor: '#10b981', x: 540, y: 200, width: 180, height: 100, fonte: 'banco' },
         { id: 'n4', type: 'etapa', titulo: 'Faturamento',     metrica: fat,    unidade: 'R$',     cor: '#06b6d4', x: 780, y: 200, width: 180, height: 100, fonte: 'banco' },
-        { id: 'n5', type: 'etapa', titulo: 'CPL',             metrica: cpl,    unidade: 'R$',     cor: '#8b5cf6', x: 60,  y: 60,  width: 160, height: 80,  fonte: 'banco' },
-        { id: 'n6', type: 'etapa', titulo: 'Conversão',       metrica: conv,   unidade: '%',      cor: '#10b981', x: 300, y: 60,  width: 160, height: 80,  fonte: 'banco' },
-        { id: 'n7', type: 'etapa', titulo: 'Ticket Médio',    metrica: ticket, unidade: 'R$',     cor: '#f59e0b', x: 540, y: 60,  width: 160, height: 80,  fonte: 'banco' },
+        { id: 'n5', type: 'etapa', titulo: 'CPL',             metrica: cpl,    unidade: 'R$',     cor: '#8b5cf6', x: 60,  y: 60,  width: 180, height: 100, fonte: 'banco' },
+        { id: 'n6', type: 'etapa', titulo: 'Conversão',       metrica: conv,   unidade: '%',      cor: '#10b981', x: 300, y: 60,  width: 180, height: 100, fonte: 'banco' },
+        { id: 'n7', type: 'etapa', titulo: 'Ticket Médio',    metrica: ticket, unidade: 'R$',     cor: '#f59e0b', x: 540, y: 60,  width: 180, height: 100, fonte: 'banco' },
       ]
       const newEdges: FunnelEdge[] = [
         { id: 'e1', sourceId: 'n1', targetId: 'n2' },
@@ -439,15 +441,20 @@ export default function FunilPage() {
         {/* Componentes */}
         <div className="p-3 border-b border-gray-800 space-y-1.5">
           <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-2">Adicionar</p>
-          {([
-            { type: 'etapa' as const, icon: Layers, label: 'Etapa do Funil' },
-            { type: 'anotacao' as const, icon: Type, label: 'Anotação' },
-          ]).map(({ type, icon: Icon, label }) => (
-            <button key={type} onClick={() => addNode(type)}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-xs text-gray-300 transition-colors border border-gray-700">
-              <Icon size={12} className="text-gray-500" /> {label}
-            </button>
-          ))}
+          <button onClick={() => addNode('etapa')}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-xs text-gray-300 transition-colors border border-gray-700">
+            <Layers size={12} className="text-gray-500" /> Etapa do Funil
+          </button>
+          <button
+            onClick={() => { if (!lancamentoId) { showToast('Selecione um lançamento primeiro', 'err'); return }; setShowPicker(true) }}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-xs text-gray-300 transition-colors border border-gray-700"
+          >
+            <BarChart2 size={12} className="text-purple-400" /> Métrica de Lançamento
+          </button>
+          <button onClick={() => addNode('anotacao')}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-800 hover:bg-gray-700 text-xs text-gray-300 transition-colors border border-gray-700">
+            <Type size={12} className="text-gray-500" /> Anotação
+          </button>
         </div>
 
         {/* Propriedades do nó selecionado */}
@@ -557,26 +564,14 @@ export default function FunilPage() {
           <div className="flex items-center gap-2 shrink-0">
             <LancamentoSelector value={lancamentoId} onChange={setLancamentoId} />
 
-            {/* Dropdown puxar dados */}
-            <div className="flex items-center rounded-lg border border-emerald-500/30 bg-emerald-500/10 overflow-hidden">
-              <button
-                onClick={puxarFunilPadrao}
-                disabled={!lancamentoId || loadingDados}
-                className="flex items-center gap-1.5 text-xs font-medium text-emerald-300 hover:text-emerald-200 px-3 py-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {loadingDados ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
-                Funil padrão
-              </button>
-              <div className="w-px h-4 bg-emerald-500/20" />
-              <button
-                onClick={() => setShowPicker(true)}
-                disabled={!lancamentoId}
-                className="flex items-center gap-1 text-xs font-medium text-emerald-300 hover:text-emerald-200 px-2 py-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                title="Escolher métricas individualmente"
-              >
-                <ChevronDown size={11} /> Métricas
-              </button>
-            </div>
+            <button
+              onClick={puxarFunilPadrao}
+              disabled={!lancamentoId || loadingDados}
+              className="flex items-center gap-1.5 text-xs font-medium text-emerald-300 hover:text-emerald-200 border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg px-3 py-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {loadingDados ? <Loader2 size={11} className="animate-spin" /> : <RefreshCw size={11} />}
+              Funil padrão
+            </button>
 
             {activeFunnel && (
               <button onClick={salvar} disabled={saving}
