@@ -14,6 +14,7 @@ import {
   Zap,
   BarChart2,
   Users,
+  GitFork,
 } from 'lucide-react'
 
 const NAV = [
@@ -24,6 +25,7 @@ const NAV = [
   { href: '/perfil',        label: 'Perfil Comprador', icon: Users,           desc: 'Formação · Renda · Perfil' },
   { href: '/financeiro',    label: 'DRE Dinâmico',     icon: DollarSign,      desc: 'Conciliação financeira' },
   { href: '/recuperacao',   label: 'Recuperação',      icon: RefreshCw,       desc: 'Inadimplência e chargeback' },
+  { href: '/funil',         label: 'Canvas de Funil',  icon: GitFork,         desc: 'Visualização do funil' },
   { href: '/simulador',     label: 'Simulador',        icon: Calculator,      desc: 'Forecasting Preditivo' },
   { href: '/auditoria',     label: 'Auditoria',        icon: ShieldCheck,     desc: 'Qualidade dos dados' },
 ]
