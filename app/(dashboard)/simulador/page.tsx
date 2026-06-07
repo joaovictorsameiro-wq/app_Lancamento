@@ -100,11 +100,11 @@ export default function SimuladorPage() {
 
       if (rows.length === 0) return
 
-      const cpls      = rows.map(r => r.cpl).filter(v => v > 0)
-      const conversoes = rows.map(r => r.taxa_conversao_pct).filter(v => v > 0)
+      const cpls      = rows.map(r => Number(r.cpl)).filter(v => v > 0)
+      const conversoes = rows.map(r => Number(r.taxa_conversao_pct)).filter(v => v > 0)
       const tickets   = rows
-        .filter(r => r.total_vendas > 0)
-        .map(r => r.faturamento_bruto / r.total_vendas)
+        .filter(r => Number(r.total_vendas) > 0)
+        .map(r => Number(r.faturamento_bruto) / Number(r.total_vendas))
         .filter(v => v > 0)
 
       const medCPL      = cpls.length      > 0 ? mediana(cpls)      : 0
