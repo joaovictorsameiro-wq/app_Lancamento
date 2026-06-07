@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard,
   Activity,
@@ -15,6 +15,7 @@ import {
   BarChart2,
   Users,
   GitFork,
+  LogOut,
 } from 'lucide-react'
 
 const NAV = [
@@ -32,6 +33,13 @@ const NAV = [
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
+
+  async function handleLogout() {
+    await fetch('/api/auth/logout', { method: 'POST' })
+    router.push('/login')
+    router.refresh()
+  }
 
   return (
     <aside className="flex h-screen w-56 flex-col border-r border-gray-800 bg-gray-950">
@@ -73,8 +81,15 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-gray-800 p-3">
-        <p className="text-[10px] text-gray-600 text-center">Supabase · sxoebppeutexyaljxucr</p>
+      <div className="border-t border-gray-800 p-3 space-y-2">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-gray-500 hover:bg-gray-800/60 hover:text-red-400 transition-all text-xs"
+        >
+          <LogOut size={13} className="shrink-0" />
+          <span>Sair</span>
+        </button>
+        <p className="text-[10px] text-gray-700 text-center">Supabase · sxoebppeutexyaljxucr</p>
       </div>
     </aside>
   )
