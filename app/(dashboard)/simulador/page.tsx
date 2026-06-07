@@ -1,251 +1,383 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Calculator, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react'
+import { Calculator, RefreshCw, TrendingUp, TrendingDown, Info } from 'lucide-react'
 import LancamentoSelector from '../../../components/lancamento-selector'
 import { fmt_currency, fmt_number, fmt_pct } from '../../../lib/format'
 import type { FunilRow } from '../../../lib/db/lancamentos'
 
-interface Premissa {
-  id: string
+interface Inputs {
+  investimento: string
+  cpl: string
+  conversao: string
+  ticket: string
+  taxa_plataforma: string
+  imposto: string
+}
+
+const DEFAULTS: Inputs = {
+  investimento: '',
+  cpl: '',
+  conversao: '',
+  ticket: '',
+  taxa_plataforma: '9.9',
+  imposto: '6',
+}
+
+function parseNum(v: string): number {
+  const n = parseFloat(v.replace(',', '.'))
+  return isNaN(n) ? 0 : n
+}
+
+function InputField({
+  label,
+  value,
+  onChange,
+  prefix,
+  suffix,
+  placeholder,
+  hint,
+}: {
   label: string
-  param: keyof Cenario
-  unit: '%' | 'R$' | 'x'
-  min: number
-  max: number
-  step: number
+  value: string
+  onChange: (v: string) => void
+  prefix?: string
+  suffix?: string
+  placeholder?: string
+  hint?: string
+}) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-gray-400 mb-1.5">{label}</label>
+      <div className="relative flex items-center">
+        {prefix && (
+          <span className="absolute left-3 text-xs text-gray-500 select-none">{prefix}</span>
+        )}
+        <input
+          type="number"
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder ?? '0'}
+          className={`
+            w-full rounded-lg border border-gray-700 bg-gray-800/60 py-2.5 text-sm text-white
+            placeholder:text-gray-600 focus:border-purple-500 focus:outline-none focus:ring-1 focus:ring-purple-500/40
+            ${prefix ? 'pl-8' : 'pl-3'} ${suffix ? 'pr-10' : 'pr-3'}
+          `}
+        />
+        {suffix && (
+          <span className="absolute right-3 text-xs text-gray-500 select-none">{suffix}</span>
+        )}
+      </div>
+      {hint && <p className="mt-1 text-[10px] text-gray-600">{hint}</p>}
+    </div>
+  )
 }
-
-interface Cenario {
-  cpm_delta: number          // % variação no CPM
-  conversao_pagina_delta: number  // % variação na conversão da página
-  taxa_compra_delta: number  // % variação na taxa de compra
-  ticket_medio_delta: number // % variação no ticket médio
-  budget_delta: number       // % variação no budget
-  taxa_hotmart: number       // % taxa plataforma
-  imposto: number            // % imposto
-}
-
-const PREMISSAS: Premissa[] = [
-  { id: 'cpm', label: 'Variação CPM', param: 'cpm_delta', unit: '%', min: -50, max: 100, step: 5 },
-  { id: 'conv', label: 'Variação Conv. Página', param: 'conversao_pagina_delta', unit: '%', min: -80, max: 100, step: 5 },
-  { id: 'compra', label: 'Variação Taxa de Compra', param: 'taxa_compra_delta', unit: '%', min: -80, max: 100, step: 5 },
-  { id: 'ticket', label: 'Variação Ticket Médio', param: 'ticket_medio_delta', unit: '%', min: -50, max: 100, step: 5 },
-  { id: 'budget', label: 'Variação Budget', param: 'budget_delta', unit: '%', min: -50, max: 200, step: 10 },
-  { id: 'taxa', label: 'Taxa Hotmart', param: 'taxa_hotmart', unit: '%', min: 0, max: 20, step: 0.5 },
-  { id: 'imposto', label: 'Alíquota Imposto', param: 'imposto', unit: '%', min: 0, max: 30, step: 1 },
-]
 
 export default function SimuladorPage() {
   const [lancamentoId, setLancamentoId] = useState('')
-  const [funil, setFunil] = useState<FunilRow | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [cenario, setCenario] = useState<Cenario>({
-    cpm_delta: 0,
-    conversao_pagina_delta: 0,
-    taxa_compra_delta: 0,
-    ticket_medio_delta: 0,
-    budget_delta: 0,
-    taxa_hotmart: 9.9,
-    imposto: 6,
-  })
+  const [inputs, setInputs] = useState<Inputs>(DEFAULTS)
+  const [preenchido, setPreenchido] = useState(false)
 
+  // Pré-preencher com dados reais do lançamento selecionado
   useEffect(() => {
     if (!lancamentoId) return
-    setLoading(true)
     fetch(`/api/funil?id=${lancamentoId}`)
       .then(r => r.json())
-      .then(data => setFunil(data[0] ?? null))
-      .finally(() => setLoading(false))
+      .then((data: FunilRow[]) => {
+        const f = data[0]
+        if (!f) return
+        const ticketMedio = f.total_vendas > 0 ? f.faturamento_bruto / f.total_vendas : 0
+        setInputs({
+          investimento: f.investimento_total > 0 ? f.investimento_total.toFixed(2) : '',
+          cpl: f.cpl > 0 ? f.cpl.toFixed(2) : '',
+          conversao: f.taxa_conversao_pct > 0 ? f.taxa_conversao_pct.toFixed(2) : '',
+          ticket: ticketMedio > 0 ? ticketMedio.toFixed(2) : '',
+          taxa_plataforma: inputs.taxa_plataforma,
+          imposto: inputs.imposto,
+        })
+        setPreenchido(true)
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lancamentoId])
 
-  const resetCenario = () => setCenario({
-    cpm_delta: 0, conversao_pagina_delta: 0, taxa_compra_delta: 0,
-    ticket_medio_delta: 0, budget_delta: 0, taxa_hotmart: 9.9, imposto: 6,
-  })
+  const set = (k: keyof Inputs) => (v: string) => setInputs(prev => ({ ...prev, [k]: v }))
 
-  // Calcular cenário simulado
-  const calcularResultado = () => {
-    if (!funil) return null
-
-    const budget = funil.investimento_total * (1 + cenario.budget_delta / 100)
-    const cpm = funil.total_leads > 0
-      ? (funil.investimento_total / funil.total_leads) * 1000  // proxy de CPM via CPL
-      : 0
-    const cpmSimulado = cpm * (1 + cenario.cpm_delta / 100)
-
-    // Leads simulados: budget / CPL simulado
-    // CPL = CPM × (1000 / cliques_por_mil) / conversao_pagina
-    // Simplificação: proporcional ao CPM e conversão de página
-    const fatorCPM = cenario.cpm_delta !== 0 ? 1 / (1 + cenario.cpm_delta / 100) : 1
-    const fatorConvPagina = 1 + cenario.conversao_pagina_delta / 100
-    const fatorBudget = 1 + cenario.budget_delta / 100
-
-    const leadsSimulados = funil.total_leads * fatorCPM * fatorConvPagina * fatorBudget
-    const taxaCompra = (funil.taxa_conversao_pct / 100) * (1 + cenario.taxa_compra_delta / 100)
-    const vendasSimuladas = leadsSimulados * taxaCompra
-
-    const ticketMedio = funil.total_vendas > 0
-      ? (funil.faturamento_bruto / funil.total_vendas) * (1 + cenario.ticket_medio_delta / 100)
-      : 0
-
-    const faturamentoBruto = vendasSimuladas * ticketMedio
-    const taxaPlataforma = faturamentoBruto * (cenario.taxa_hotmart / 100)
-    const impostoValor = faturamentoBruto * (cenario.imposto / 100)
-    const lucroLiquido = faturamentoBruto - budget - taxaPlataforma - impostoValor
-    const roi = budget > 0 ? faturamentoBruto / budget : 0
-    const cplSimulado = leadsSimulados > 0 ? budget / leadsSimulados : 0
-    const margemLiquida = faturamentoBruto > 0 ? (lucroLiquido / faturamentoBruto) * 100 : 0
-
-    return {
-      budget, leadsSimulados, vendasSimuladas, faturamentoBruto,
-      lucroLiquido, roi, cplSimulado, margemLiquida, taxaCompra: taxaCompra * 100,
-    }
+  const resetInputs = () => {
+    setInputs(DEFAULTS)
+    setLancamentoId('')
+    setPreenchido(false)
   }
 
-  const resultado = calcularResultado()
+  // Cálculo central
+  const inv         = parseNum(inputs.investimento)
+  const cpl         = parseNum(inputs.cpl)
+  const conversao   = parseNum(inputs.conversao)
+  const ticket      = parseNum(inputs.ticket)
+  const taxaPlat    = parseNum(inputs.taxa_plataforma)
+  const aliqImposto = parseNum(inputs.imposto)
 
-  const delta = (simVal: number, baseVal: number) =>
-    baseVal > 0 ? ((simVal - baseVal) / Math.abs(baseVal)) * 100 : 0
+  const leads           = cpl > 0 ? inv / cpl : 0
+  const vendas          = leads * (conversao / 100)
+  const fatBruto        = vendas * ticket
+  const valorPlataforma = fatBruto * (taxaPlat / 100)
+  const valorImposto    = fatBruto * (aliqImposto / 100)
+  const lucroLiquido    = fatBruto - inv - valorPlataforma - valorImposto
+  const roi             = inv > 0 ? (lucroLiquido / inv) * 100 : 0
+  const margem          = fatBruto > 0 ? (lucroLiquido / fatBruto) * 100 : 0
+  const roiMultiplo     = inv > 0 ? fatBruto / inv : 0
 
-  const DeltaBadge = ({ val, higherIsBetter = true }: { val: number; higherIsBetter?: boolean }) => {
-    if (Math.abs(val) < 0.1) return <span className="text-xs text-gray-500">=</span>
-    const positive = val > 0
-    const good = higherIsBetter ? positive : !positive
-    return (
-      <span className={`flex items-center gap-0.5 text-xs font-medium ${good ? 'text-emerald-400' : 'text-red-400'}`}>
-        {positive ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-        {positive ? '+' : ''}{val.toFixed(1)}%
-      </span>
-    )
-  }
+  const temDados = inv > 0 && cpl > 0 && conversao > 0 && ticket > 0
+
+  const ResultCard = ({
+    label,
+    value,
+    sub,
+    color = 'white',
+    big = false,
+  }: {
+    label: string
+    value: string
+    sub?: string
+    color?: string
+    big?: boolean
+  }) => (
+    <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-4">
+      <p className="text-xs text-gray-400 mb-1">{label}</p>
+      <p className={`${big ? 'text-2xl' : 'text-xl'} font-bold tabular-nums ${color}`}>{value}</p>
+      {sub && <p className="text-[10px] text-gray-500 mt-1">{sub}</p>}
+    </div>
+  )
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-start justify-between">
+      {/* Header */}
+      <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-xl font-bold text-white flex items-center gap-2">
             <Calculator size={18} className="text-purple-400" />
-            Simulador de Cenários (What-If)
+            Forecasting Preditivo
           </h1>
-          <p className="text-sm text-gray-400 mt-0.5">Analise o impacto de variações nas premissas estratégicas</p>
+          <p className="text-sm text-gray-400 mt-0.5">
+            Projete seu próximo lançamento com valores absolutos — sem depender de dados históricos
+          </p>
         </div>
-        <LancamentoSelector value={lancamentoId} onChange={setLancamentoId} />
+        <div className="flex items-center gap-3">
+          <LancamentoSelector value={lancamentoId} onChange={setLancamentoId} />
+          <button
+            onClick={resetInputs}
+            className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-200 transition-colors border border-gray-700 rounded-lg px-3 py-2"
+          >
+            <RefreshCw size={11} /> Limpar
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-        {/* Controles */}
-        <div className="lg:col-span-2 rounded-xl border border-gray-800 bg-gray-900/60 p-5 space-y-4">
-          <div className="flex items-center justify-between mb-1">
-            <h2 className="text-sm font-semibold text-white">Premissas do Cenário</h2>
-            <button
-              onClick={resetCenario}
-              className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-200 transition-colors"
-            >
-              <RefreshCw size={11} /> Reset
-            </button>
+      {preenchido && (
+        <div className="flex items-center gap-2 rounded-lg border border-purple-500/20 bg-purple-500/5 px-4 py-2.5 text-xs text-purple-300">
+          <Info size={13} />
+          Campos pré-preenchidos com dados reais do lançamento selecionado. Edite à vontade.
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+
+        {/* Inputs — coluna esquerda */}
+        <div className="lg:col-span-2 space-y-4">
+
+          {/* Investimento & CPL */}
+          <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-5 space-y-4">
+            <h2 className="text-xs font-semibold text-gray-300 uppercase tracking-wider">📡 Tráfego</h2>
+            <InputField
+              label="Investimento Pretendido"
+              value={inputs.investimento}
+              onChange={set('investimento')}
+              prefix="R$"
+              placeholder="Ex: 40000"
+              hint="Total que será investido em anúncios"
+            />
+            <InputField
+              label="CPL Estimado (Custo por Lead)"
+              value={inputs.cpl}
+              onChange={set('cpl')}
+              prefix="R$"
+              placeholder="Ex: 14.50"
+              hint="Quanto você paga por cada lead captado"
+            />
           </div>
 
-          {PREMISSAS.map(p => {
-            const val = cenario[p.param] as number
-            const isChanged = p.param === 'taxa_hotmart' ? val !== 9.9 : p.param === 'imposto' ? val !== 6 : val !== 0
-            return (
-              <div key={p.id}>
-                <div className="flex items-center justify-between mb-1">
-                  <label className={`text-xs font-medium ${isChanged ? 'text-purple-300' : 'text-gray-400'}`}>
-                    {p.label}
-                  </label>
-                  <span className={`text-xs tabular-nums font-bold ${isChanged ? 'text-purple-300' : 'text-gray-300'}`}>
-                    {val > 0 && p.param !== 'taxa_hotmart' && p.param !== 'imposto' ? '+' : ''}{val.toFixed(1)}{p.unit}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={p.min}
-                  max={p.max}
-                  step={p.step}
-                  value={val}
-                  onChange={e => setCenario(prev => ({ ...prev, [p.param]: parseFloat(e.target.value) }))}
-                  className="w-full accent-purple-500 h-1.5 cursor-pointer"
-                />
-                <div className="flex justify-between text-[10px] text-gray-600 mt-0.5">
-                  <span>{p.min}{p.unit}</span>
-                  <span>{p.max}{p.unit}</span>
-                </div>
-              </div>
-            )
-          })}
+          {/* Conversão & Ticket */}
+          <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-5 space-y-4">
+            <h2 className="text-xs font-semibold text-gray-300 uppercase tracking-wider">🛒 Vendas</h2>
+            <InputField
+              label="Taxa de Conversão Lead → Venda"
+              value={inputs.conversao}
+              onChange={set('conversao')}
+              suffix="%"
+              placeholder="Ex: 2.5"
+              hint="% dos leads que se tornam compradores"
+            />
+            <InputField
+              label="Ticket Médio do Produto"
+              value={inputs.ticket}
+              onChange={set('ticket')}
+              prefix="R$"
+              placeholder="Ex: 1637"
+              hint="Valor médio de cada venda"
+            />
+          </div>
+
+          {/* Custos */}
+          <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-5 space-y-4">
+            <h2 className="text-xs font-semibold text-gray-300 uppercase tracking-wider">💸 Custos & Impostos</h2>
+            <InputField
+              label="Taxa da Plataforma de Pagamento"
+              value={inputs.taxa_plataforma}
+              onChange={set('taxa_plataforma')}
+              suffix="%"
+              placeholder="9.9"
+              hint="Hotmart, Kiwify, etc."
+            />
+            <InputField
+              label="Alíquota de Imposto"
+              value={inputs.imposto}
+              onChange={set('imposto')}
+              suffix="%"
+              placeholder="6"
+              hint="Simples Nacional, Lucro Presumido, etc."
+            />
+          </div>
         </div>
 
-        {/* Resultado */}
+        {/* Resultados — coluna direita */}
         <div className="lg:col-span-3 space-y-4">
-          {/* Cards comparativos */}
-          {funil && resultado ? (
+
+          {temDados ? (
             <>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { label: 'Faturamento Bruto', base: funil.faturamento_bruto, sim: resultado.faturamentoBruto, fmt: (v: number) => fmt_currency(v, true) },
-                  { label: 'Leads Projetados', base: funil.total_leads, sim: resultado.leadsSimulados, fmt: (v: number) => fmt_number(v, 0) },
-                  { label: 'CPL Simulado', base: funil.cpl, sim: resultado.cplSimulado, fmt: (v: number) => fmt_currency(v), higherIsBetter: false },
-                  { label: 'Conversão', base: funil.taxa_conversao_pct, sim: resultado.taxaCompra, fmt: (v: number) => fmt_pct(v, 2) },
-                  { label: 'Lucro Líquido', base: 0, sim: resultado.lucroLiquido, fmt: (v: number) => fmt_currency(v, true), hideBase: true },
-                  { label: 'Margem Líquida', base: 0, sim: resultado.margemLiquida, fmt: (v: number) => fmt_pct(v, 1), hideBase: true },
-                ].map(item => (
-                  <div key={item.label} className="rounded-xl border border-gray-800 bg-gray-900/60 p-4">
-                    <p className="text-xs text-gray-400 mb-2">{item.label}</p>
-                    <div className="flex items-end gap-3">
-                      {!item.hideBase && (
-                        <div>
-                          <p className="text-[10px] text-gray-600">Atual</p>
-                          <p className="text-sm text-gray-400 tabular-nums">{item.fmt(item.base)}</p>
-                        </div>
-                      )}
+              {/* Funil projetado */}
+              <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-5">
+                <h2 className="text-xs font-semibold text-gray-300 uppercase tracking-wider mb-4">📊 Funil Projetado</h2>
+                <div className="space-y-3">
+                  {[
+                    { label: 'Investimento', value: fmt_currency(inv, true), color: 'text-gray-200' },
+                    { label: 'Total de Leads', value: fmt_number(leads, 0), color: 'text-blue-300', sub: `CPL real: ${fmt_currency(cpl)}` },
+                    { label: 'Total de Vendas', value: fmt_number(vendas, 0), color: 'text-purple-300', sub: `Conversão: ${fmt_pct(conversao, 2)}` },
+                    { label: 'Faturamento Bruto', value: fmt_currency(fatBruto, true), color: 'text-emerald-300', sub: `Ticket médio: ${fmt_currency(ticket)}` },
+                  ].map((row, i) => (
+                    <div key={i} className="flex items-center justify-between py-2 border-b border-gray-800 last:border-0">
                       <div>
-                        <p className="text-[10px] text-gray-600">Simulado</p>
-                        <p className={`text-lg font-bold tabular-nums ${resultado.lucroLiquido < 0 && item.label === 'Lucro Líquido' ? 'text-red-400' : 'text-white'}`}>
-                          {item.fmt(item.sim)}
-                        </p>
+                        <p className="text-xs text-gray-500">{row.label}</p>
+                        {row.sub && <p className="text-[10px] text-gray-600 mt-0.5">{row.sub}</p>}
                       </div>
-                      {!item.hideBase && (
-                        <DeltaBadge val={delta(item.sim, item.base)} higherIsBetter={item.higherIsBetter !== false} />
+                      <p className={`text-base font-bold tabular-nums ${row.color}`}>{row.value}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Resultado financeiro */}
+              <div className="grid grid-cols-2 gap-3">
+                <ResultCard
+                  label="Taxa Plataforma"
+                  value={fmt_currency(valorPlataforma, true)}
+                  sub={`${taxaPlat}% do faturamento`}
+                  color="text-orange-300"
+                />
+                <ResultCard
+                  label="Imposto"
+                  value={fmt_currency(valorImposto, true)}
+                  sub={`${aliqImposto}% do faturamento`}
+                  color="text-orange-300"
+                />
+                <ResultCard
+                  label="Lucro Líquido"
+                  value={fmt_currency(lucroLiquido, true)}
+                  sub={`Margem: ${fmt_pct(margem, 1)}`}
+                  color={lucroLiquido >= 0 ? 'text-emerald-400' : 'text-red-400'}
+                />
+                <ResultCard
+                  label="Margem Líquida"
+                  value={fmt_pct(margem, 1)}
+                  sub={`Lucro ÷ Faturamento`}
+                  color={margem >= 20 ? 'text-emerald-400' : margem >= 0 ? 'text-yellow-400' : 'text-red-400'}
+                />
+              </div>
+
+              {/* ROI destaque */}
+              <div className={`rounded-xl border p-5 ${roi >= 0 ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-red-500/30 bg-red-500/5'}`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1">ROI do Lançamento</p>
+                    <div className="flex items-baseline gap-2">
+                      <p className={`text-4xl font-bold tabular-nums ${roi >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {roi >= 0 ? '+' : ''}{roi.toFixed(1)}%
+                      </p>
+                      {roi >= 0 ? (
+                        <TrendingUp size={20} className="text-emerald-400 mb-0.5" />
+                      ) : (
+                        <TrendingDown size={20} className="text-red-400 mb-0.5" />
                       )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1.5">
+                      Para cada <span className="text-white font-medium">R$1,00</span> investido, retorna{' '}
+                      <span className={`font-bold ${roiMultiplo >= 1 ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {fmt_currency(roiMultiplo)}
+                      </span>
+                    </p>
+                  </div>
+                  <div className="text-right space-y-1">
+                    <p className="text-[10px] text-gray-500">Faturamento / Investimento</p>
+                    <p className="text-lg font-bold text-white tabular-nums">{roiMultiplo.toFixed(2)}x</p>
+                  </div>
+                </div>
+              </div>
+
+              {lucroLiquido < 0 && (
+                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-400">
+                  <strong>⚠️ Atenção:</strong> Com essas premissas o lançamento opera no prejuízo. Revise CPL, conversão ou ticket médio.
+                </div>
+              )}
+
+              {/* Breakdown de custos */}
+              <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-5">
+                <h2 className="text-xs font-semibold text-gray-300 uppercase tracking-wider mb-4">💡 Destino do Faturamento</h2>
+                {[
+                  { label: 'Investimento em Tráfego', valor: inv, pct: fatBruto > 0 ? (inv / fatBruto) * 100 : 0, color: 'bg-blue-500' },
+                  { label: 'Taxa Plataforma', valor: valorPlataforma, pct: fatBruto > 0 ? (valorPlataforma / fatBruto) * 100 : 0, color: 'bg-orange-500' },
+                  { label: 'Imposto', valor: valorImposto, pct: fatBruto > 0 ? (valorImposto / fatBruto) * 100 : 0, color: 'bg-yellow-500' },
+                  { label: 'Lucro Líquido', valor: lucroLiquido, pct: margem, color: lucroLiquido >= 0 ? 'bg-emerald-500' : 'bg-red-500' },
+                ].map((row, i) => (
+                  <div key={i} className="mb-3">
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="text-gray-400">{row.label}</span>
+                      <span className="text-gray-300 tabular-nums">
+                        {fmt_currency(row.valor, true)} <span className="text-gray-500">({row.pct.toFixed(1)}%)</span>
+                      </span>
+                    </div>
+                    <div className="h-1.5 w-full rounded-full bg-gray-800 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${row.color} transition-all duration-500`}
+                        style={{ width: `${Math.max(0, Math.min(100, row.pct))}%` }}
+                      />
                     </div>
                   </div>
                 ))}
               </div>
-
-              {/* ROI card */}
-              <div className={`rounded-xl border p-4 ${resultado.roi > 1 ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-red-500/30 bg-red-500/5'}`}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-gray-400">ROI Simulado</p>
-                    <p className={`text-3xl font-bold mt-1 tabular-nums ${resultado.roi > 1 ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {fmt_pct((resultado.roi - 1) * 100, 1)}
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Para cada R$1 investido, retorna{' '}
-                      <span className="font-medium text-gray-300">{fmt_currency(resultado.roi)}</span>
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-gray-400">vs. Atual</p>
-                    <DeltaBadge val={delta(resultado.roi, funil.roi)} />
-                  </div>
-                </div>
-              </div>
-
-              {resultado.lucroLiquido < 0 && (
-                <div className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-400">
-                  <strong>Atenção:</strong> Neste cenário o lançamento opera no prejuízo. Revise as premissas.
-                </div>
-              )}
             </>
           ) : (
-            <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-8 text-center">
-              <Calculator size={32} className="text-gray-700 mx-auto mb-3" />
-              <p className="text-sm text-gray-500">
-                {loading ? 'Carregando dados do lançamento...' : 'Selecione um lançamento para iniciar a simulação'}
+            <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-12 text-center">
+              <Calculator size={40} className="text-gray-700 mx-auto mb-4" />
+              <p className="text-sm font-medium text-gray-400">Preencha os campos ao lado para ver a projeção</p>
+              <p className="text-xs text-gray-600 mt-2">
+                Ou selecione um lançamento acima para pré-preencher com dados reais
               </p>
+              <div className="mt-6 grid grid-cols-2 gap-2 max-w-xs mx-auto text-left">
+                {['Investimento', 'CPL Estimado', 'Taxa de Conversão', 'Ticket Médio'].map(f => (
+                  <div key={f} className="flex items-center gap-1.5 text-xs text-gray-600">
+                    <span className="w-1.5 h-1.5 rounded-full bg-gray-700" />
+                    {f}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>
