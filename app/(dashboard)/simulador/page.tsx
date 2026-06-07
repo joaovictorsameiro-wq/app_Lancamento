@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
-import { Calculator, RefreshCw, TrendingUp, TrendingDown, Info, History, Loader2 } from 'lucide-react'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { Calculator, RefreshCw, TrendingUp, TrendingDown, Info, History, Loader2, ChevronDown, Check } from 'lucide-react'
 import LancamentoSelector from '../../../components/lancamento-selector'
 import { fmt_currency, fmt_number, fmt_pct } from '../../../lib/format'
 import type { FunilRow } from '../../../lib/db/lancamentos'
@@ -24,35 +24,47 @@ const DEFAULTS: Inputs = {
   imposto: '6',
 }
 
+// Lançamentos com dados suficientes para mediana
+const LANCAMENTOS_DISPONIVEIS = [
+  { id: 'LC24', label: 'LC24' },
+  { id: 'LC23', label: 'LC23' },
+  { id: 'LC22', label: 'LC22' },
+  { id: 'LC20', label: 'LC20' },
+  { id: 'LC19', label: 'LC19' },
+  { id: 'LC18', label: 'LC18' },
+  { id: 'LC17', label: 'LC17' },
+  { id: 'LC16', label: 'LC16' },
+  { id: 'LC15', label: 'LC15' },
+  { id: 'LC14', label: 'LC14' },
+  { id: 'LC13', label: 'LC13' },
+  { id: 'LC12', label: 'LC12' },
+  { id: 'LC11', label: 'LC11' },
+  { id: 'LC10', label: 'LC10' },
+  { id: 'LC09', label: 'LC09' },
+  { id: 'LC08', label: 'LC08' },
+  { id: 'LC07', label: 'LC07' },
+  { id: 'LC06', label: 'LC06' },
+  { id: 'LC05', label: 'LC05' },
+]
+
+const DEFAULT_SELECIONADOS = ['LC24', 'LC23', 'LC22']
+
 function parseNum(v: string): number {
   const n = parseFloat(v.replace(',', '.'))
   return isNaN(n) ? 0 : n
 }
 
 function InputField({
-  label,
-  value,
-  onChange,
-  prefix,
-  suffix,
-  placeholder,
-  hint,
+  label, value, onChange, prefix, suffix, placeholder, hint,
 }: {
-  label: string
-  value: string
-  onChange: (v: string) => void
-  prefix?: string
-  suffix?: string
-  placeholder?: string
-  hint?: string
+  label: string; value: string; onChange: (v: string) => void
+  prefix?: string; suffix?: string; placeholder?: string; hint?: string
 }) {
   return (
     <div>
       <label className="block text-xs font-medium text-gray-400 mb-1.5">{label}</label>
       <div className="relative flex items-center">
-        {prefix && (
-          <span className="absolute left-3 text-xs text-gray-500 select-none">{prefix}</span>
-        )}
+        {prefix && <span className="absolute left-3 text-xs text-gray-500 select-none">{prefix}</span>}
         <input
           type="number"
           value={value}
@@ -64,11 +76,99 @@ function InputField({
             ${prefix ? 'pl-8' : 'pl-3'} ${suffix ? 'pr-10' : 'pr-3'}
           `}
         />
-        {suffix && (
-          <span className="absolute right-3 text-xs text-gray-500 select-none">{suffix}</span>
-        )}
+        {suffix && <span className="absolute right-3 text-xs text-gray-500 select-none">{suffix}</span>}
       </div>
       {hint && <p className="mt-1 text-[10px] text-gray-600">{hint}</p>}
+    </div>
+  )
+}
+
+function LancamentoMultiSelect({
+  selected,
+  onChange,
+}: {
+  selected: string[]
+  onChange: (ids: string[]) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
+
+  const toggle = (id: string) => {
+    if (selected.includes(id)) {
+      if (selected.length === 1) return // mínimo 1
+      onChange(selected.filter(s => s !== id))
+    } else {
+      onChange([...selected, id])
+    }
+  }
+
+  const toggleAll = () => {
+    if (selected.length === LANCAMENTOS_DISPONIVEIS.length) {
+      onChange([LANCAMENTOS_DISPONIVEIS[0].id])
+    } else {
+      onChange(LANCAMENTOS_DISPONIVEIS.map(l => l.id))
+    }
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-1.5 text-xs font-medium text-gray-300 hover:text-white transition-colors border border-gray-700 bg-gray-800/60 hover:bg-gray-700/60 rounded-lg px-3 py-2"
+      >
+        <History size={11} />
+        Base da Mediana
+        <span className="ml-1 rounded-full bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 text-[10px] font-bold">
+          {selected.length}
+        </span>
+        <ChevronDown size={11} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-50 w-56 rounded-xl border border-gray-700 bg-gray-900 shadow-2xl shadow-black/50 p-2">
+          <div className="flex items-center justify-between px-2 py-1.5 mb-1">
+            <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Lançamentos para mediana</span>
+            <button
+              onClick={toggleAll}
+              className="text-[10px] text-emerald-400 hover:text-emerald-300"
+            >
+              {selected.length === LANCAMENTOS_DISPONIVEIS.length ? 'Desmarcar todos' : 'Todos'}
+            </button>
+          </div>
+          <div className="max-h-64 overflow-y-auto space-y-0.5">
+            {LANCAMENTOS_DISPONIVEIS.map(l => {
+              const checked = selected.includes(l.id)
+              return (
+                <button
+                  key={l.id}
+                  onClick={() => toggle(l.id)}
+                  className={`w-full flex items-center justify-between rounded-lg px-3 py-1.5 text-xs transition-colors
+                    ${checked
+                      ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20'
+                      : 'text-gray-400 hover:bg-gray-800 border border-transparent'
+                    }`}
+                >
+                  <span className="font-medium">{l.label}</span>
+                  {checked && <Check size={11} />}
+                </button>
+              )
+            })}
+          </div>
+          <div className="mt-2 pt-2 border-t border-gray-800 px-2">
+            <p className="text-[10px] text-gray-600">
+              Mediana calculada com {selected.length} lançamento{selected.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -79,6 +179,7 @@ export default function SimuladorPage() {
   const [preenchido, setPreenchido] = useState(false)
   const [loadingMediana, setLoadingMediana] = useState(false)
   const [medianaInfo, setMedianaInfo] = useState<{ ids: string[]; cpl: number; conversao: number; ticket: number } | null>(null)
+  const [lancamentosSelecionados, setLancamentosSelecionados] = useState<string[]>(DEFAULT_SELECIONADOS)
 
   const mediana = (arr: number[]) => {
     const s = [...arr].sort((a, b) => a - b)
@@ -89,42 +190,40 @@ export default function SimuladorPage() {
   const puxarHistoricoMediano = useCallback(async () => {
     setLoadingMediana(true)
     try {
-      // Busca os 3 últimos lançamentos com dados de tráfego (LC22, LC23, LC24)
-      const IDS = ['LC24', 'LC23', 'LC22']
       const results = await Promise.all(
-        IDS.map(id => fetch(`/api/funil?id=${id}`).then(r => r.json()))
+        lancamentosSelecionados.map(id => fetch(`/api/funil?id=${id}`).then(r => r.json()))
       )
       const rows: FunilRow[] = results
         .map((r: FunilRow[]) => r[0])
-        .filter((r): r is FunilRow => !!r && r.total_leads > 0)
+        .filter((r): r is FunilRow => !!r && Number(r.total_leads) > 0)
 
       if (rows.length === 0) return
 
-      const cpls      = rows.map(r => Number(r.cpl)).filter(v => v > 0)
+      const cpls       = rows.map(r => Number(r.cpl)).filter(v => v > 0)
       const conversoes = rows.map(r => Number(r.taxa_conversao_pct)).filter(v => v > 0)
-      const tickets   = rows
+      const tickets    = rows
         .filter(r => Number(r.total_vendas) > 0)
         .map(r => Number(r.faturamento_bruto) / Number(r.total_vendas))
         .filter(v => v > 0)
 
-      const medCPL      = cpls.length      > 0 ? mediana(cpls)      : 0
-      const medConversao = conversoes.length > 0 ? mediana(conversoes) : 0
-      const medTicket   = tickets.length   > 0 ? mediana(tickets)   : 0
+      const medCPL       = cpls.length       > 0 ? mediana(cpls)       : 0
+      const medConversao = conversoes.length  > 0 ? mediana(conversoes) : 0
+      const medTicket    = tickets.length     > 0 ? mediana(tickets)    : 0
 
       const idsUsados = rows.map(r => r.lancamento)
       setMedianaInfo({ ids: idsUsados, cpl: medCPL, conversao: medConversao, ticket: medTicket })
+      setPreenchido(false)
 
       setInputs(prev => ({
         ...prev,
-        cpl:      medCPL      > 0 ? medCPL.toFixed(2)      : prev.cpl,
+        cpl:      medCPL       > 0 ? medCPL.toFixed(2)       : prev.cpl,
         conversao: medConversao > 0 ? medConversao.toFixed(2) : prev.conversao,
-        ticket:   medTicket   > 0 ? medTicket.toFixed(2)   : prev.ticket,
+        ticket:   medTicket    > 0 ? medTicket.toFixed(2)    : prev.ticket,
       }))
-      setPreenchido(false) // limpa o banner de lançamento selecionado
     } finally {
       setLoadingMediana(false)
     }
-  }, [])
+  }, [lancamentosSelecionados])
 
   // Pré-preencher com dados reais do lançamento selecionado
   useEffect(() => {
@@ -134,16 +233,19 @@ export default function SimuladorPage() {
       .then((data: FunilRow[]) => {
         const f = data[0]
         if (!f) return
-        const ticketMedio = f.total_vendas > 0 ? f.faturamento_bruto / f.total_vendas : 0
+        const ticketMedio = Number(f.total_vendas) > 0
+          ? Number(f.faturamento_bruto) / Number(f.total_vendas)
+          : 0
         setInputs({
-          investimento: f.investimento_total > 0 ? f.investimento_total.toFixed(2) : '',
-          cpl: f.cpl > 0 ? f.cpl.toFixed(2) : '',
-          conversao: f.taxa_conversao_pct > 0 ? f.taxa_conversao_pct.toFixed(2) : '',
-          ticket: ticketMedio > 0 ? ticketMedio.toFixed(2) : '',
+          investimento: Number(f.investimento_total) > 0 ? Number(f.investimento_total).toFixed(2) : '',
+          cpl:          Number(f.cpl) > 0 ? Number(f.cpl).toFixed(2) : '',
+          conversao:    Number(f.taxa_conversao_pct) > 0 ? Number(f.taxa_conversao_pct).toFixed(2) : '',
+          ticket:       ticketMedio > 0 ? ticketMedio.toFixed(2) : '',
           taxa_plataforma: inputs.taxa_plataforma,
-          imposto: inputs.imposto,
+          imposto:         inputs.imposto,
         })
         setPreenchido(true)
+        setMedianaInfo(null)
       })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lancamentoId])
@@ -154,6 +256,7 @@ export default function SimuladorPage() {
     setInputs(DEFAULTS)
     setLancamentoId('')
     setPreenchido(false)
+    setMedianaInfo(null)
   }
 
   // Cálculo central
@@ -177,18 +280,8 @@ export default function SimuladorPage() {
   const temDados = inv > 0 && cpl > 0 && conversao > 0 && ticket > 0
 
   const ResultCard = ({
-    label,
-    value,
-    sub,
-    color = 'white',
-    big = false,
-  }: {
-    label: string
-    value: string
-    sub?: string
-    color?: string
-    big?: boolean
-  }) => (
+    label, value, sub, color = 'white', big = false,
+  }: { label: string; value: string; sub?: string; color?: string; big?: boolean }) => (
     <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-4">
       <p className="text-xs text-gray-400 mb-1">{label}</p>
       <p className={`${big ? 'text-2xl' : 'text-xl'} font-bold tabular-nums ${color}`}>{value}</p>
@@ -210,6 +303,12 @@ export default function SimuladorPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Seletor de lançamentos para mediana */}
+          <LancamentoMultiSelect
+            selected={lancamentosSelecionados}
+            onChange={setLancamentosSelecionados}
+          />
+          {/* Botão aplicar mediana */}
           <button
             onClick={puxarHistoricoMediano}
             disabled={loadingMediana}
@@ -218,7 +317,7 @@ export default function SimuladorPage() {
             {loadingMediana
               ? <Loader2 size={11} className="animate-spin" />
               : <History size={11} />}
-            Puxar Histórico Mediano
+            Aplicar Mediana
           </button>
           <LancamentoSelector value={lancamentoId} onChange={setLancamentoId} />
           <button
@@ -256,7 +355,6 @@ export default function SimuladorPage() {
         {/* Inputs — coluna esquerda */}
         <div className="lg:col-span-2 space-y-4">
 
-          {/* Investimento & CPL */}
           <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-5 space-y-4">
             <h2 className="text-xs font-semibold text-gray-300 uppercase tracking-wider">📡 Tráfego</h2>
             <InputField
@@ -277,7 +375,6 @@ export default function SimuladorPage() {
             />
           </div>
 
-          {/* Conversão & Ticket */}
           <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-5 space-y-4">
             <h2 className="text-xs font-semibold text-gray-300 uppercase tracking-wider">🛒 Vendas</h2>
             <InputField
@@ -298,7 +395,6 @@ export default function SimuladorPage() {
             />
           </div>
 
-          {/* Custos */}
           <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-5 space-y-4">
             <h2 className="text-xs font-semibold text-gray-300 uppercase tracking-wider">💸 Custos & Impostos</h2>
             <InputField
@@ -383,11 +479,9 @@ export default function SimuladorPage() {
                       <p className={`text-4xl font-bold tabular-nums ${roi >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                         {roi >= 0 ? '+' : ''}{roi.toFixed(1)}%
                       </p>
-                      {roi >= 0 ? (
-                        <TrendingUp size={20} className="text-emerald-400 mb-0.5" />
-                      ) : (
-                        <TrendingDown size={20} className="text-red-400 mb-0.5" />
-                      )}
+                      {roi >= 0
+                        ? <TrendingUp size={20} className="text-emerald-400 mb-0.5" />
+                        : <TrendingDown size={20} className="text-red-400 mb-0.5" />}
                     </div>
                     <p className="text-xs text-gray-500 mt-1.5">
                       Para cada <span className="text-white font-medium">R$1,00</span> investido, retorna{' '}
@@ -440,7 +534,7 @@ export default function SimuladorPage() {
               <Calculator size={40} className="text-gray-700 mx-auto mb-4" />
               <p className="text-sm font-medium text-gray-400">Preencha os campos ao lado para ver a projeção</p>
               <p className="text-xs text-gray-600 mt-2">
-                Ou selecione um lançamento acima para pré-preencher com dados reais
+                Ou clique em <strong className="text-gray-500">Aplicar Mediana</strong> para pré-preencher com histórico selecionado
               </p>
               <div className="mt-6 grid grid-cols-2 gap-2 max-w-xs mx-auto text-left">
                 {['Investimento', 'CPL Estimado', 'Taxa de Conversão', 'Ticket Médio'].map(f => (
