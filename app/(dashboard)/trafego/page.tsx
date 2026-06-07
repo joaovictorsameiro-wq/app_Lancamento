@@ -1,12 +1,12 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { BarChart2, TrendingDown, Users, Zap, Target, Bell, ShoppingCart, Eye, MousePointerClick } from 'lucide-react'
+import { BarChart2, TrendingDown, Users, Zap, Target, Bell, ShoppingCart } from 'lucide-react'
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
-import { useLancamento } from '../../../components/lancamento-context'
-import { fmt_currency, fmt_pct } from '../../../lib/format'
+import LancamentoSelector from '../../../components/lancamento-selector'
+import { fmt_currency } from '../../../lib/format'
 
 type Breakdown = {
   tipo: string
@@ -64,7 +64,7 @@ const CHART_COLORS = {
 }
 
 export default function TrafegoPage() {
-  const { lancamentoId } = useLancamento()
+  const [lancamentoId, setLancamentoId] = useState('')
   const [breakdown, setBreakdown] = useState<Breakdown[]>([])
   const [campanhas, setCampanhas] = useState<Campanha[]>([])
   const [diario, setDiario]       = useState<DiarioDado[]>([])
@@ -124,14 +124,6 @@ export default function TrafegoPage() {
     'Leads': d.leads,
   }))
 
-  if (!lancamentoId) {
-    return (
-      <div className="flex h-full items-center justify-center text-gray-500">
-        Selecione um lançamento
-      </div>
-    )
-  }
-
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -143,11 +135,24 @@ export default function TrafegoPage() {
           </h1>
           <p className="text-xs text-gray-500 mt-0.5">Breakdown por tipo de campanha · CPL real baseado só em captação</p>
         </div>
-        <div className="text-right">
-          <p className="text-xs text-gray-500">Investimento Total</p>
-          <p className="text-xl font-bold text-white">{fmt_currency(totalGasto)}</p>
+        <div className="flex items-center gap-4">
+          {totalGasto > 0 && (
+            <div className="text-right">
+              <p className="text-xs text-gray-500">Investimento Total</p>
+              <p className="text-xl font-bold text-white">{fmt_currency(totalGasto)}</p>
+            </div>
+          )}
+          <LancamentoSelector value={lancamentoId} onChange={setLancamentoId} />
         </div>
       </div>
+
+      {!lancamentoId && (
+        <div className="flex h-40 items-center justify-center text-gray-500 text-sm">
+          Selecione um lançamento para ver os dados de tráfego
+        </div>
+      )}
+
+      {lancamentoId && (<>
 
       {/* CAPTAÇÃO — seção principal */}
       <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-4 space-y-4">
@@ -335,6 +340,8 @@ export default function TrafegoPage() {
           </table>
         </div>
       </div>
+
+      </>)}
     </div>
   )
 }
