@@ -13,6 +13,7 @@ import {
   ChevronRight,
   Zap,
   BarChart2,
+  Users,
 } from 'lucide-react'
 
 const NAV = [
@@ -20,9 +21,10 @@ const NAV = [
   { href: '/tempo-real',    label: 'Tempo Real',       icon: Activity,        desc: 'Funil ao vivo' },
   { href: '/trafego',       label: 'Tráfego Meta',     icon: BarChart2,       desc: 'Captação · Aquecimento · Venda' },
   { href: '/forecasting',   label: 'Forecasting',      icon: TrendingUp,      desc: 'Projeções e comparativos' },
+  { href: '/perfil',        label: 'Perfil Comprador', icon: Users,           desc: 'Formação · Renda · Perfil' },
   { href: '/financeiro',    label: 'DRE Dinâmico',     icon: DollarSign,      desc: 'Conciliação financeira' },
   { href: '/recuperacao',   label: 'Recuperação',      icon: RefreshCw,       desc: 'Inadimplência e chargeback' },
-  { href: '/simulador',     label: 'Simulador',        icon: Calculator,      desc: 'Análise What-If' },
+  { href: '/simulador',     label: 'Simulador',        icon: Calculator,      desc: 'Forecasting Preditivo' },
   { href: '/auditoria',     label: 'Auditoria',        icon: ShieldCheck,     desc: 'Qualidade dos dados' },
 ]
 
