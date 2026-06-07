@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { Calculator, RefreshCw, TrendingUp, TrendingDown, Info } from 'lucide-react'
+import { useEffect, useState, useCallback } from 'react'
+import { Calculator, RefreshCw, TrendingUp, TrendingDown, Info, History, Loader2 } from 'lucide-react'
 import LancamentoSelector from '../../../components/lancamento-selector'
 import { fmt_currency, fmt_number, fmt_pct } from '../../../lib/format'
 import type { FunilRow } from '../../../lib/db/lancamentos'
@@ -77,6 +77,54 @@ export default function SimuladorPage() {
   const [lancamentoId, setLancamentoId] = useState('')
   const [inputs, setInputs] = useState<Inputs>(DEFAULTS)
   const [preenchido, setPreenchido] = useState(false)
+  const [loadingMediana, setLoadingMediana] = useState(false)
+  const [medianaInfo, setMedianaInfo] = useState<{ ids: string[]; cpl: number; conversao: number; ticket: number } | null>(null)
+
+  const mediana = (arr: number[]) => {
+    const s = [...arr].sort((a, b) => a - b)
+    const m = Math.floor(s.length / 2)
+    return s.length % 2 !== 0 ? s[m] : (s[m - 1] + s[m]) / 2
+  }
+
+  const puxarHistoricoMediano = useCallback(async () => {
+    setLoadingMediana(true)
+    try {
+      // Busca os 3 últimos lançamentos com dados de tráfego (LC22, LC23, LC24)
+      const IDS = ['LC24', 'LC23', 'LC22']
+      const results = await Promise.all(
+        IDS.map(id => fetch(`/api/funil?id=${id}`).then(r => r.json()))
+      )
+      const rows: FunilRow[] = results
+        .map((r: FunilRow[]) => r[0])
+        .filter((r): r is FunilRow => !!r && r.total_leads > 0)
+
+      if (rows.length === 0) return
+
+      const cpls      = rows.map(r => r.cpl).filter(v => v > 0)
+      const conversoes = rows.map(r => r.taxa_conversao_pct).filter(v => v > 0)
+      const tickets   = rows
+        .filter(r => r.total_vendas > 0)
+        .map(r => r.faturamento_bruto / r.total_vendas)
+        .filter(v => v > 0)
+
+      const medCPL      = cpls.length      > 0 ? mediana(cpls)      : 0
+      const medConversao = conversoes.length > 0 ? mediana(conversoes) : 0
+      const medTicket   = tickets.length   > 0 ? mediana(tickets)   : 0
+
+      const idsUsados = rows.map(r => r.lancamento)
+      setMedianaInfo({ ids: idsUsados, cpl: medCPL, conversao: medConversao, ticket: medTicket })
+
+      setInputs(prev => ({
+        ...prev,
+        cpl:      medCPL      > 0 ? medCPL.toFixed(2)      : prev.cpl,
+        conversao: medConversao > 0 ? medConversao.toFixed(2) : prev.conversao,
+        ticket:   medTicket   > 0 ? medTicket.toFixed(2)   : prev.ticket,
+      }))
+      setPreenchido(false) // limpa o banner de lançamento selecionado
+    } finally {
+      setLoadingMediana(false)
+    }
+  }, [])
 
   // Pré-preencher com dados reais do lançamento selecionado
   useEffect(() => {
@@ -161,7 +209,17 @@ export default function SimuladorPage() {
             Projete seu próximo lançamento com valores absolutos — sem depender de dados históricos
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={puxarHistoricoMediano}
+            disabled={loadingMediana}
+            className="flex items-center gap-1.5 text-xs font-medium text-emerald-300 hover:text-emerald-200 transition-colors border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg px-3 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loadingMediana
+              ? <Loader2 size={11} className="animate-spin" />
+              : <History size={11} />}
+            Puxar Histórico Mediano
+          </button>
           <LancamentoSelector value={lancamentoId} onChange={setLancamentoId} />
           <button
             onClick={resetInputs}
@@ -176,6 +234,20 @@ export default function SimuladorPage() {
         <div className="flex items-center gap-2 rounded-lg border border-purple-500/20 bg-purple-500/5 px-4 py-2.5 text-xs text-purple-300">
           <Info size={13} />
           Campos pré-preenchidos com dados reais do lançamento selecionado. Edite à vontade.
+        </div>
+      )}
+
+      {medianaInfo && !preenchido && (
+        <div className="flex items-start gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-4 py-3 text-xs text-emerald-300">
+          <History size={13} className="mt-0.5 shrink-0" />
+          <div>
+            <span className="font-semibold">Mediana histórica aplicada</span>
+            {' '}com base em {medianaInfo.ids.join(', ')}.{' '}
+            CPL: <span className="font-bold text-white">{fmt_currency(medianaInfo.cpl)}</span>
+            {' · '}Conversão: <span className="font-bold text-white">{medianaInfo.conversao.toFixed(2)}%</span>
+            {' · '}Ticket: <span className="font-bold text-white">{fmt_currency(medianaInfo.ticket)}</span>.
+            {' '}Ajuste o investimento e simule.
+          </div>
         </div>
       )}
 
