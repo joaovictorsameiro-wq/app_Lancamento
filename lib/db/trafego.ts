@@ -108,8 +108,8 @@ export async function getTrafegoBreakdown(idLancamento: string) {
   return prisma.$queryRaw<TrafegoBreakdown[]>`
     SELECT
       CASE
-        WHEN campanha ILIKE '%LEAD%' AND (campanha ILIKE '%_PQ_%' OR campanha ILIKE '%PQ_%') THEN 'captacao_pq'
-        WHEN campanha ILIKE '%LEAD%' AND (campanha ILIKE '%_PF_%' OR campanha ILIKE '%PF_%') THEN 'captacao_pf'
+        WHEN campanha ILIKE '%LEAD%' AND (campanha ILIKE '%_PQ_%' OR campanha ILIKE '%PQ_%' OR campanha ILIKE '%_PQ') THEN 'captacao_pq'
+        WHEN campanha ILIKE '%LEAD%' AND (campanha ILIKE '%_PF_%' OR campanha ILIKE '%PF_%' OR campanha ILIKE '%_PF') THEN 'captacao_pf'
         WHEN campanha ILIKE '%LEAD%' OR campanha ILIKE '%Captacao%' THEN 'captacao'
         WHEN campanha ILIKE '%Aquecimento%' THEN 'aquecimento'
         WHEN campanha ILIKE '%Distribuicao%' OR campanha ILIKE '%Turbinado%' THEN 'distribuicao'
@@ -134,8 +134,8 @@ export async function getTrafegoCampanhas(idLancamento: string) {
     SELECT
       campanha,
       CASE
-        WHEN campanha ILIKE '%LEAD%' AND (campanha ILIKE '%_PQ_%' OR campanha ILIKE '%PQ_%') THEN 'captacao_pq'
-        WHEN campanha ILIKE '%LEAD%' AND (campanha ILIKE '%_PF_%' OR campanha ILIKE '%PF_%') THEN 'captacao_pf'
+        WHEN campanha ILIKE '%LEAD%' AND (campanha ILIKE '%_PQ_%' OR campanha ILIKE '%PQ_%' OR campanha ILIKE '%_PQ') THEN 'captacao_pq'
+        WHEN campanha ILIKE '%LEAD%' AND (campanha ILIKE '%_PF_%' OR campanha ILIKE '%PF_%' OR campanha ILIKE '%_PF') THEN 'captacao_pf'
         WHEN campanha ILIKE '%LEAD%' OR campanha ILIKE '%Captacao%' THEN 'captacao'
         WHEN campanha ILIKE '%Aquecimento%' THEN 'aquecimento'
         WHEN campanha ILIKE '%Distribuicao%' OR campanha ILIKE '%Turbinado%' THEN 'distribuicao'
