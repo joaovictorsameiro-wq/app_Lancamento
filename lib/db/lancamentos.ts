@@ -36,10 +36,14 @@ export type FunilRow = {
   cliques_total: number
   total_leads: number
   cpl: number
+  gasto_captacao: number
   respostas_avatar: number
   total_vendas: number
   faturamento_bruto: number
   faturamento_liquido: number
   taxa_conversao_pct: number
   roi: number
+  // Order bumps separados
+  vendas_order_bump: number
+  fat_order_bump: number
 }

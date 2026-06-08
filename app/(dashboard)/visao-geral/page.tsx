@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import {
   DollarSign, Users, ShoppingCart, TrendingUp,
-  Target, BarChart2, Activity, RefreshCw, EyeOff
+  Target, BarChart2, Activity, RefreshCw, EyeOff, Gift
 } from 'lucide-react'
 import KpiCard from '../../../components/kpi-card'
 import FunilChart from '../../../components/funil-chart'
@@ -165,6 +165,37 @@ export default function OverviewPage() {
           loading={loading}
         />
       </div>
+
+      {/* Order Bumps — só aparece se houver */}
+      {funil && Number(funil.vendas_order_bump) > 0 && (
+        <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500/15">
+              <Gift size={15} className="text-amber-400" />
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-amber-400 uppercase tracking-wider">Order Bumps</p>
+              <p className="text-xs text-gray-400 mt-0.5">Vendas de produtos complementares — não contabilizados nas vendas principais</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-8">
+            <div className="text-right">
+              <p className="text-xs text-gray-500 uppercase tracking-wider">Qtd</p>
+              <p className="text-lg font-bold text-amber-300">{fmt_number(funil.vendas_order_bump)}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-gray-500 uppercase tracking-wider">Receita</p>
+              <p className="text-lg font-bold text-amber-300">{fmt_currency(funil.fat_order_bump, true)}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-gray-500 uppercase tracking-wider">% do Fat.</p>
+              <p className="text-lg font-bold text-amber-300">
+                {fmt_pct((Number(funil.fat_order_bump) / Number(funil.faturamento_bruto)) * 100, 1)}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Funil + Histórico */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
