@@ -16,6 +16,7 @@ import {
   Users,
   GitFork,
   LogOut,
+  X,
 } from 'lucide-react'
 
 const NAV = [
@@ -31,7 +32,7 @@ const NAV = [
   { href: '/auditoria',     label: 'Auditoria',        icon: ShieldCheck,     desc: 'Qualidade dos dados' },
 ]
 
-export default function Sidebar() {
+export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname()
   const router = useRouter()
 
@@ -48,10 +49,19 @@ export default function Sidebar() {
         <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/20">
           <Zap size={14} className="text-emerald-400" />
         </div>
-        <div>
+        <div className="flex-1">
           <p className="text-xs font-bold tracking-tight text-white">Launch</p>
           <p className="text-[10px] text-gray-500">Analytics v2.0</p>
         </div>
+        {/* Botão fechar — só aparece no mobile */}
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-800 md:hidden"
+          >
+            <X size={14} />
+          </button>
+        )}
       </div>
 
       {/* Nav */}
