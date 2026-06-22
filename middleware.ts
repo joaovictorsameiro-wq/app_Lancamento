@@ -5,7 +5,7 @@ const AUTH_SECRET = process.env.AUTH_SECRET ?? 'fallback_secret_change_me'
 const COOKIE_NAME = 'la_session'
 
 // Rotas que não precisam de autenticação
-const PUBLIC_PATHS = ['/login', '/api/auth/login']
+const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/automacoes/ping']
 
 // Usa Web Crypto API (compatível com Edge Runtime)
 async function importKey(secret: string): Promise<CryptoKey> {
