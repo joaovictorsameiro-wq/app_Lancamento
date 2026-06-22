@@ -2,41 +2,44 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import {
-  LayoutDashboard,
-  Activity,
-  TrendingUp,
-  DollarSign,
-  RefreshCw,
-  Calculator,
-  ShieldCheck,
-  ChevronRight,
-  Zap,
-  BarChart2,
-  Users,
-  GitFork,
-  LogOut,
-  X,
-  CheckSquare,
+  LayoutDashboard, Activity, TrendingUp, DollarSign, RefreshCw,
+  Calculator, ShieldCheck, ChevronRight, Zap, BarChart2, Users,
+  GitFork, LogOut, X, CheckSquare, Sun, Moon,
 } from 'lucide-react'
 
 const NAV = [
-  { href: '/checklist',     label: 'Checklist',        icon: CheckSquare,     desc: 'Tarefas do lançamento' },
-  { href: '/visao-geral',   label: 'Visão Geral',      icon: LayoutDashboard, desc: 'KPIs consolidados' },
-  { href: '/tempo-real',    label: 'Tempo Real',       icon: Activity,        desc: 'Funil ao vivo' },
-  { href: '/trafego',       label: 'Tráfego Meta',     icon: BarChart2,       desc: 'Captação · Aquecimento · Venda' },
-  { href: '/forecasting',   label: 'Forecasting',      icon: TrendingUp,      desc: 'Projeções e comparativos' },
-  { href: '/perfil',        label: 'Perfil Comprador', icon: Users,           desc: 'Formação · Renda · Perfil' },
-  { href: '/financeiro',    label: 'DRE Dinâmico',     icon: DollarSign,      desc: 'Conciliação financeira' },
-  { href: '/recuperacao',   label: 'Recuperação',      icon: RefreshCw,       desc: 'Inadimplência e chargeback' },
-  { href: '/funil',         label: 'Canvas de Funil',  icon: GitFork,         desc: 'Visualização do funil' },
-  { href: '/simulador',     label: 'Simulador',        icon: Calculator,      desc: 'Forecasting Preditivo' },
-  { href: '/auditoria',     label: 'Auditoria',        icon: ShieldCheck,     desc: 'Qualidade dos dados' },
+  { href: '/checklist',   label: 'Checklist',        icon: CheckSquare,     desc: 'Tarefas do lançamento' },
+  { href: '/visao-geral', label: 'Visão Geral',      icon: LayoutDashboard, desc: 'KPIs consolidados' },
+  { href: '/tempo-real',  label: 'Tempo Real',        icon: Activity,        desc: 'Funil ao vivo' },
+  { href: '/trafego',     label: 'Tráfego Meta',      icon: BarChart2,       desc: 'Captação · Aquecimento · Venda' },
+  { href: '/forecasting', label: 'Forecasting',       icon: TrendingUp,      desc: 'Projeções e comparativos' },
+  { href: '/perfil',      label: 'Perfil Comprador',  icon: Users,           desc: 'Formação · Renda · Perfil' },
+  { href: '/financeiro',  label: 'DRE Dinâmico',      icon: DollarSign,      desc: 'Conciliação financeira' },
+  { href: '/recuperacao', label: 'Recuperação',        icon: RefreshCw,       desc: 'Inadimplência e chargeback' },
+  { href: '/funil',       label: 'Canvas de Funil',   icon: GitFork,         desc: 'Visualização do funil' },
+  { href: '/simulador',   label: 'Simulador',          icon: Calculator,      desc: 'Forecasting Preditivo' },
+  { href: '/auditoria',   label: 'Auditoria',          icon: ShieldCheck,     desc: 'Qualidade dos dados' },
 ]
 
 export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname()
   const router = useRouter()
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
+
+  useEffect(() => {
+    const saved = localStorage.getItem('theme')
+    setTheme(saved === 'light' ? 'light' : 'dark')
+  }, [])
+
+  function toggleTheme() {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    setTheme(next)
+    localStorage.setItem('theme', next)
+    document.documentElement.classList.remove('dark', 'light')
+    document.documentElement.classList.add(next)
+  }
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' })
@@ -55,12 +58,8 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
           <p className="text-xs font-bold tracking-tight text-white">Launch</p>
           <p className="text-[10px] text-gray-500">Analytics v2.0</p>
         </div>
-        {/* Botão fechar — só aparece no mobile */}
         {onClose && (
-          <button
-            onClick={onClose}
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-800 md:hidden"
-          >
+          <button onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-lg text-gray-500 hover:text-gray-300 hover:bg-gray-800 md:hidden">
             <X size={14} />
           </button>
         )}
@@ -71,17 +70,13 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
         {NAV.map(item => {
           const active = pathname === item.href || pathname.startsWith(item.href)
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`
-                group flex items-center gap-2.5 rounded-lg px-3 py-2 transition-all
-                ${active
-                  ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                  : 'text-gray-400 hover:bg-gray-800/60 hover:text-gray-200 border border-transparent'
-                }
-              `}
-            >
+            <Link key={item.href} href={item.href} className={`
+              group flex items-center gap-2.5 rounded-lg px-3 py-2 transition-all
+              ${active
+                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                : 'text-gray-400 hover:bg-gray-800/60 hover:text-gray-200 border border-transparent'
+              }
+            `}>
               <item.icon size={15} className="shrink-0" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-medium">{item.label}</p>
@@ -93,15 +88,22 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-gray-800 p-3 space-y-2">
+      <div className="border-t border-gray-800 p-3 space-y-1">
+        {/* Toggle tema */}
         <button
-          onClick={handleLogout}
-          className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-gray-500 hover:bg-gray-800/60 hover:text-red-400 transition-all text-xs"
+          onClick={toggleTheme}
+          className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-gray-500 hover:bg-gray-800/60 hover:text-gray-300 transition-all text-xs"
         >
+          {theme === 'dark'
+            ? <><Sun size={13} className="shrink-0" /><span>Modo claro</span></>
+            : <><Moon size={13} className="shrink-0" /><span>Modo escuro</span></>
+          }
+        </button>
+        <button onClick={handleLogout} className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-gray-500 hover:bg-gray-800/60 hover:text-red-400 transition-all text-xs">
           <LogOut size={13} className="shrink-0" />
           <span>Sair</span>
         </button>
-        <p className="text-[10px] text-gray-700 text-center">Supabase · sxoebppeutexyaljxucr</p>
+        <p className="text-[10px] text-gray-700 text-center">sxoebppeutexyaljxucr</p>
       </div>
     </aside>
   )
