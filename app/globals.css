@@ -17,10 +17,10 @@
 
 /* ── Tema claro ───────────────────────────────────────────── */
 :root.light {
-  --bg-app:      #f1f5f9;
+  --bg-app:      #f8fafc;
   --bg-surface:  #ffffff;
-  --bg-elevated: #f8fafc;
-  --bg-hover:    #e2e8f0;
+  --bg-elevated: #f1f5f9;
+  --bg-hover:    #e9eef4;
   --border:      #e2e8f0;
   --border-soft: #cbd5e1;
   --text-1:      #0f172a;
@@ -57,24 +57,93 @@ body {
 .recharts-cartesian-grid-horizontal line,
 .recharts-cartesian-grid-vertical line { stroke: var(--border) !important; }
 
-/* ── Overrides light mode para componentes com classes fixas ─ */
+/* ══════════════════════════════════════════════════════════
+   TEMA CLARO — overrides
+   Sidebar permanece escura (intencional, como Notion/Linear).
+   O conteúdo principal vira claro e limpo.
+══════════════════════════════════════════════════════════ */
+
+/* Backgrounds */
 :root.light .bg-gray-950 { background-color: var(--bg-app) !important; }
 :root.light .bg-gray-900 { background-color: var(--bg-surface) !important; }
 :root.light .bg-gray-800 { background-color: var(--bg-elevated) !important; }
-:root.light .bg-gray-800\/60 { background-color: color-mix(in srgb, var(--bg-elevated) 60%, transparent) !important; }
+:root.light .bg-gray-800\/60 { background-color: var(--bg-elevated) !important; }
+:root.light .bg-gray-800\/80 { background-color: var(--bg-elevated) !important; }
+:root.light .bg-gray-900\/40 { background-color: var(--bg-elevated) !important; }
+:root.light .bg-gray-900\/50 { background-color: var(--bg-surface) !important; }
+:root.light .bg-gray-900\/20 { background-color: var(--bg-elevated) !important; }
+:root.light .bg-gray-900\/30 { background-color: var(--bg-elevated) !important; }
+
+/* Bordas */
 :root.light .border-gray-800 { border-color: var(--border) !important; }
 :root.light .border-gray-700 { border-color: var(--border-soft) !important; }
-:root.light .text-white { color: var(--text-1) !important; }
+:root.light .border-gray-600 { border-color: var(--border-soft) !important; }
+:root.light .border-dashed.border-gray-700 { border-color: #cbd5e1 !important; }
+
+/* Textos */
+:root.light .text-white  { color: var(--text-1) !important; }
 :root.light .text-gray-100 { color: var(--text-1) !important; }
 :root.light .text-gray-200 { color: var(--text-2) !important; }
 :root.light .text-gray-300 { color: var(--text-2) !important; }
 :root.light .text-gray-400 { color: var(--text-3) !important; }
-:root.light .text-gray-500 { color: var(--text-3) !important; }
+:root.light .text-gray-500 { color: var(--text-4) !important; }
 :root.light .text-gray-600 { color: var(--text-4) !important; }
 :root.light .text-gray-700 { color: var(--text-4) !important; }
-:root.light .hover\:bg-gray-800:hover { background-color: var(--bg-elevated) !important; }
-:root.light .hover\:bg-gray-700:hover { background-color: var(--bg-hover) !important; }
-:root.light .hover\:bg-gray-800\/60:hover { background-color: color-mix(in srgb, var(--bg-elevated) 60%, transparent) !important; }
-:root.light .bg-gray-900\/40 { background-color: color-mix(in srgb, var(--bg-surface) 40%, transparent) !important; }
-:root.light .bg-gray-900\/50 { background-color: color-mix(in srgb, var(--bg-surface) 50%, transparent) !important; }
-:root.light .bg-gray-950 { background-color: var(--bg-app) !important; }
+
+/* Hovers */
+:root.light .hover\:bg-gray-800:hover   { background-color: var(--bg-hover) !important; }
+:root.light .hover\:bg-gray-700:hover   { background-color: var(--bg-hover) !important; }
+:root.light .hover\:bg-gray-800\/60:hover { background-color: var(--bg-hover) !important; }
+:root.light .hover\:bg-gray-800\/50:hover { background-color: var(--bg-hover) !important; }
+:root.light .hover\:border-gray-500:hover { border-color: var(--border-soft) !important; }
+:root.light .hover\:border-gray-700:hover { border-color: var(--border-soft) !important; }
+
+/* Textos hover */
+:root.light .hover\:text-gray-300:hover { color: var(--text-2) !important; }
+:root.light .hover\:text-gray-200:hover { color: var(--text-1) !important; }
+:root.light .hover\:text-gray-400:hover { color: var(--text-3) !important; }
+
+/* ── Seções coloridas de semana: bordas viram neutras no claro ─ */
+:root.light .border-blue-500\/30    { border-color: var(--border) !important; }
+:root.light .border-cyan-500\/30    { border-color: var(--border) !important; }
+:root.light .border-violet-500\/30  { border-color: var(--border) !important; }
+:root.light .border-purple-500\/30  { border-color: var(--border) !important; }
+:root.light .border-amber-500\/30   { border-color: var(--border) !important; }
+:root.light .border-emerald-500\/30 { border-color: var(--border) !important; }
+:root.light .border-rose-500\/30    { border-color: var(--border) !important; }
+:root.light .border-red-500\/30     { border-color: #fca5a5 !important; }
+:root.light .border-amber-500\/30   { border-color: #fcd34d !important; }
+
+/* Backgrounds coloridos de semana: ficam muito sutis no claro */
+:root.light .bg-blue-500\/5    { background-color: #f8fafc !important; }
+:root.light .bg-cyan-500\/5    { background-color: #f8fafc !important; }
+:root.light .bg-violet-500\/5  { background-color: #f8fafc !important; }
+:root.light .bg-purple-500\/5  { background-color: #f8fafc !important; }
+:root.light .bg-amber-500\/5   { background-color: #f8fafc !important; }
+:root.light .bg-emerald-500\/5 { background-color: #f0fdf4 !important; }
+:root.light .bg-rose-500\/5    { background-color: #f8fafc !important; }
+:root.light .bg-red-500\/5     { background-color: #fff5f5 !important; }
+:root.light .bg-amber-500\/5   { background-color: #fffbeb !important; }
+
+/* Badges de tarefa no claro */
+:root.light .bg-gray-800 { background-color: #f1f5f9 !important; }
+:root.light .bg-blue-500\/10 { background-color: #eff6ff !important; }
+:root.light .bg-red-500\/15  { background-color: #fef2f2 !important; }
+:root.light .bg-amber-500\/15 { background-color: #fffbeb !important; }
+:root.light .bg-emerald-500\/10 { background-color: #f0fdf4 !important; }
+:root.light .bg-emerald-500\/20 { background-color: #dcfce7 !important; }
+:root.light .bg-black\/20 { background-color: #e2e8f0 !important; }
+
+/* Input e select no claro */
+:root.light input,
+:root.light select,
+:root.light textarea {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-soft) !important;
+  color: var(--text-1) !important;
+}
+:root.light input::placeholder,
+:root.light textarea::placeholder { color: var(--text-4) !important; }
+
+/* Texto cinza dentro do bg-gray-800 (badges) no claro */
+:root.light .bg-gray-800.text-gray-300 { color: var(--text-2) !important; }
