@@ -9,13 +9,37 @@ datasource db {
 }
 
 model lancamentos {
-  codigo            String   @id
-  nome              String
-  data_inicio       DateTime?
-  data_fim          DateTime?
-  status            String?
-  meta_faturamento  Float?
-  observacoes       String?
+  codigo                  String    @id
+  nome                    String
+  data_inicio             DateTime?
+  data_fim                DateTime?
+  status                  String?
+  meta_faturamento        Float?
+  observacoes             String?
+  data_abertura_carrinho  DateTime?
+
+  checklist_tarefas checklist_tarefa[]
+}
+
+model checklist_tarefa {
+  id             String    @id @default(cuid())
+  id_lancamento  String
+  semana         Int
+  ordem          Int
+  tarefa         String
+  local          String?
+  responsavel    String?
+  links          String?
+  observacoes    String?
+  offset_dias    Int?
+  feito          Boolean   @default(false)
+  data_conclusao DateTime?
+  criado_em      DateTime  @default(now())
+  atualizado_em  DateTime  @updatedAt
+
+  lancamento lancamentos @relation(fields: [id_lancamento], references: [codigo])
+
+  @@index([id_lancamento, semana, ordem])
 }
 
 model trafego_meta {

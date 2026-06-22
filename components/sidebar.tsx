@@ -17,9 +17,11 @@ import {
   GitFork,
   LogOut,
   X,
+  CheckSquare,
 } from 'lucide-react'
 
 const NAV = [
+  { href: '/checklist',     label: 'Checklist',        icon: CheckSquare,     desc: 'Tarefas do lançamento' },
   { href: '/visao-geral',   label: 'Visão Geral',      icon: LayoutDashboard, desc: 'KPIs consolidados' },
   { href: '/tempo-real',    label: 'Tempo Real',       icon: Activity,        desc: 'Funil ao vivo' },
   { href: '/trafego',       label: 'Tráfego Meta',     icon: BarChart2,       desc: 'Captação · Aquecimento · Venda' },
