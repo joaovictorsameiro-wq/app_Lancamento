@@ -18,7 +18,45 @@ model lancamentos {
   observacoes             String?
   data_abertura_carrinho  DateTime?
 
-  checklist_tarefas checklist_tarefa[]
+  checklist_tarefas    checklist_tarefa[]
+  links_config         lancamento_links_config?
+  links                lancamento_link[]
+}
+
+model lancamento_links_config {
+  id_lancamento      String  @id
+  url_base_inscricao String?
+  url_base_vendas    String?
+  utm_id             String?
+
+  lancamento lancamentos @relation(fields: [id_lancamento], references: [codigo])
+}
+
+model lancamento_link {
+  id            String    @id @default(cuid())
+  id_lancamento String
+  categoria     String
+  nome          String
+  url           String?
+  data_exibicao DateTime?
+  ordem         Int       @default(0)
+  criado_em     DateTime  @default(now())
+  atualizado_em DateTime  @updatedAt
+
+  lancamento lancamentos @relation(fields: [id_lancamento], references: [codigo])
+
+  @@index([id_lancamento, categoria, ordem])
+}
+
+model automacao {
+  id                String    @id @default(cuid())
+  nome              String
+  descricao         String?
+  intervalo_minutos Int       @default(60)
+  ultimo_ping       DateTime?
+  ativo             Boolean   @default(true)
+  criado_em         DateTime  @default(now())
+  atualizado_em     DateTime  @updatedAt
 }
 
 model checklist_tarefa {
