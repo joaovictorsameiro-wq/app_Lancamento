@@ -145,7 +145,7 @@ function LinhaLink({ link, onSalvar, onDeletar }: {
           )}
         </div>
         {link.url ? (
-          <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--text-4)' }}>{link.url}</p>
+          <p className="text-xs mt-0.5 break-all" style={{ color: 'var(--text-4)' }}>{link.url}</p>
         ) : (
           <p className="text-xs mt-0.5 italic" style={{ color: 'var(--text-4)' }}>Sem link</p>
         )}
@@ -190,7 +190,7 @@ function LinhaUtm({ nome, url }: { nome: string; url: string | null }) {
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium" style={{ color: 'var(--text-1)' }}>{nome}</p>
         {url ? (
-          <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--text-4)' }}>{url}</p>
+          <p className="text-xs mt-0.5 break-all" style={{ color: 'var(--text-4)' }}>{url}</p>
         ) : (
           <p className="text-xs mt-0.5 italic" style={{ color: 'var(--text-4)' }}>Configure a URL base e o UTM ID acima</p>
         )}
@@ -323,7 +323,7 @@ export default function LinksPage() {
 
   return (
     <div className="min-h-screen" style={{ background: 'var(--bg-app)' }}>
-      <div className="mx-auto max-w-4xl px-4 py-6 space-y-5">
+      <div className="mx-auto max-w-full px-6 py-6 space-y-5">
 
         {/* Header */}
         <div className="flex items-center gap-3 flex-wrap">

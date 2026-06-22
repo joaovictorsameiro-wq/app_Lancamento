@@ -147,3 +147,21 @@ body {
 
 /* Texto cinza dentro do bg-gray-800 (badges) no claro */
 :root.light .bg-gray-800.text-gray-300 { color: var(--text-2) !important; }
+
+/* Botão copiar e action buttons no claro — precisam de borda para ter contraste */
+:root.light .bg-gray-800.text-gray-400 {
+  background-color: #e9eef4 !important;
+  border: 1px solid var(--border-soft) !important;
+  color: var(--text-2) !important;
+}
+
+/* Linhas de link (bg-gray-900/40) no claro — fundo branco com borda */
+:root.light .border-gray-800.bg-gray-900\/40 {
+  background-color: var(--bg-surface) !important;
+  border-color: var(--border-soft) !important;
+}
+
+/* Hover das linhas de link no claro */
+:root.light .hover\:border-gray-700:hover {
+  background-color: var(--bg-elevated) !important;
+}
