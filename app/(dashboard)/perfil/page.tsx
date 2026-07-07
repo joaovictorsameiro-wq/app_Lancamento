@@ -7,6 +7,7 @@ import {
   PieChart, Pie, Cell, Legend,
 } from 'recharts'
 import type { PesquisaResumo } from '../../../lib/db/pesquisa'
+import LancamentoSelector from '../../../components/lancamento-selector'
 
 const RENDA_ORDEM = ['Ate R$3.000', 'R$3.001 a R$7.000', 'R$7.001 a R$10.000', 'R$10.001 a R$14.000', 'Acima de R$14.000']
 const FORMACAO_ORDEM = ['Administração', 'Contabilidade', 'Direito', 'Economia', 'Engenharia', 'Outras áreas']
@@ -82,7 +83,7 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub?: s
   )
 }
 
-const pct = (v: number, total: number) => ((v / total) * 100).toFixed(1) + '%'
+const pct = (v: number, total: number) => (total > 0 ? ((v / total) * 100).toFixed(1) : '0.0') + '%'
 
 // ── Tooltip customizado ───────────────────────────────────────────────────────
 const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: { value: number; name: string }[] }) => {
@@ -100,15 +101,21 @@ const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: { valu
 export default function PerfilPage() {
   const [data, setData] = useState<PesquisaResumo | null>(null)
   const [loading, setLoading] = useState(true)
+  const [lancamentoAluno, setLancamentoAluno] = useState('')  // filtro pesquisa_alunos ('' = todos)
+  const [lancamentoAvatar, setLancamentoAvatar] = useState('') // filtro avatar ('' = todos)
 
   useEffect(() => {
-    fetch('/api/pesquisa')
+    setLoading(true)
+    const params = new URLSearchParams()
+    if (lancamentoAluno) params.set('lancamento', lancamentoAluno)
+    if (lancamentoAvatar) params.set('lancamentoAvatar', lancamentoAvatar)
+    fetch(`/api/pesquisa?${params}`)
       .then(r => r.json())
       .then(setData)
       .finally(() => setLoading(false))
-  }, [])
+  }, [lancamentoAluno, lancamentoAvatar])
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <div className="flex h-full items-center justify-center p-12">
         <Loader2 size={28} className="animate-spin text-emerald-400" />
@@ -124,13 +131,13 @@ export default function PerfilPage() {
   const excelData = data.excel.map(r => ({
     name: NIVEL_LABEL[r.nivel] ?? `Nível ${r.nivel}`,
     total: r.total,
-    pct: parseFloat(((r.total / total) * 100).toFixed(1)),
+    pct: total > 0 ? parseFloat(((r.total / total) * 100).toFixed(1)) : 0,
   }))
 
   const matData = data.mat.map(r => ({
     name: NIVEL_LABEL[r.nivel] ?? `Nível ${r.nivel}`,
     total: r.total,
-    pct: parseFloat(((r.total / total) * 100).toFixed(1)),
+    pct: total > 0 ? parseFloat(((r.total / total) * 100).toFixed(1)) : 0,
   }))
 
   const procuravaData = data.procurava.map(r => ({
@@ -141,19 +148,19 @@ export default function PerfilPage() {
   const rendaData = data.renda.map(r => ({
     name: RENDA_LABEL[r.renda] ?? r.renda,
     total: r.total,
-    pct: parseFloat(((r.total / total) * 100).toFixed(1)),
+    pct: total > 0 ? parseFloat(((r.total / total) * 100).toFixed(1)) : 0,
   }))
 
   const formacaoData = data.formacao.map(r => ({
     name: r.formacao,
     total: r.total,
-    pct: parseFloat(((r.total / total) * 100).toFixed(1)),
+    pct: total > 0 ? parseFloat(((r.total / total) * 100).toFixed(1)) : 0,
   }))
 
   const academicoData = data.academico.map(r => ({
     name: r.nivel_academico,
     total: r.total,
-    pct: parseFloat(((r.total / total) * 100).toFixed(1)),
+    pct: total > 0 ? parseFloat(((r.total / total) * 100).toFixed(1)) : 0,
   }))
 
   const sexoPie = [
@@ -169,15 +176,43 @@ export default function PerfilPage() {
   return (
     <div className="p-6 space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-white flex items-center gap-2">
-          <Users size={18} className="text-emerald-400" />
-          Perfil do Comprador
-        </h1>
-        <p className="text-sm text-gray-400 mt-0.5">
-          Análise agregada de {total.toLocaleString('pt-BR')} respostas — LC04 a LC23
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold text-white flex items-center gap-2">
+            <Users size={18} className="text-emerald-400" />
+            Perfil do Comprador
+          </h1>
+          <p className="text-sm text-gray-400 mt-0.5">
+            Análise de {total.toLocaleString('pt-BR')} respostas
+            {lancamentoAluno ? ` — ${lancamentoAluno}` : ' — todos os lançamentos'}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div>
+            <p className="text-[10px] text-gray-500 mb-1">Pesquisa de Alunos</p>
+            <select
+              value={lancamentoAluno}
+              onChange={e => setLancamentoAluno(e.target.value)}
+              className="rounded-lg border border-gray-700 bg-gray-800/80 px-3 py-2 text-sm text-white hover:border-gray-600"
+            >
+              <option value="">Todos os lançamentos</option>
+              {(data.lancamentosDisponiveis ?? []).map(lc => (
+                <option key={lc} value={lc}>{lc}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <p className="text-[10px] text-gray-500 mb-1">Pesquisa de Avatar</p>
+            <LancamentoSelector value={lancamentoAvatar} onChange={setLancamentoAvatar} allowTodos />
+          </div>
+        </div>
       </div>
+
+      {total === 0 && (
+        <div className="rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4 text-sm text-yellow-300">
+          Nenhuma resposta de pesquisa de aluno encontrada para {lancamentoAluno || 'este filtro'}.
+        </div>
+      )}
 
       {/* KPIs rápidos */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

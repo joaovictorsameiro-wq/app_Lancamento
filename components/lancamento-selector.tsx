@@ -12,6 +12,7 @@ interface Lancamento {
 interface Props {
   value: string
   onChange: (codigo: string) => void
+  allowTodos?: boolean
 }
 
 // Ordena: LC (numérico desc) → LS → LR → RENOVA → SEM_LANCAMENTO
@@ -33,7 +34,7 @@ function sortLancamentos(list: Lancamento[]): Lancamento[] {
   })
 }
 
-export default function LancamentoSelector({ value, onChange }: Props) {
+export default function LancamentoSelector({ value, onChange, allowTodos }: Props) {
   const [lancamentos, setLancamentos] = useState<Lancamento[]>([])
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -49,7 +50,7 @@ export default function LancamentoSelector({ value, onChange }: Props) {
         }
         const sorted = sortLancamentos(data)
         setLancamentos(sorted)
-        if (!value) {
+        if (!value && !allowTodos) {
           // Seleciona o lançamento ativo; se não houver, o primeiro LC
           const ativo = sorted.find(l => l.status === 'ativo')
           const defaultLC = ativo ?? sorted.find(l => l.codigo.startsWith('LC')) ?? sorted[0]
@@ -93,6 +94,8 @@ export default function LancamentoSelector({ value, onChange }: Props) {
             <span className="text-gray-400">·</span>
             <span className="text-gray-300 text-xs">{selected.nome}</span>
           </>
+        ) : allowTodos ? (
+          <span className="text-gray-200 font-medium">Todos os lançamentos</span>
         ) : (
           <span className="text-gray-400">Selecionar lançamento</span>
         )}
@@ -104,6 +107,17 @@ export default function LancamentoSelector({ value, onChange }: Props) {
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           <div className="absolute left-0 top-full z-20 mt-1 w-72 rounded-xl border border-gray-700 bg-gray-900 shadow-2xl overflow-hidden">
             <div className="p-1.5 space-y-0.5 max-h-64 overflow-y-auto">
+              {allowTodos && (
+                <button
+                  onClick={() => { onChange(''); setOpen(false) }}
+                  className={`w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors hover:bg-gray-800
+                    ${value === '' ? 'bg-emerald-500/10 text-emerald-400' : 'text-gray-200'}
+                  `}
+                >
+                  <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-gray-500" />
+                  <span className="font-medium">Todos os lançamentos</span>
+                </button>
+              )}
               {lancamentos.map(l => (
                 <button
                   key={l.codigo}

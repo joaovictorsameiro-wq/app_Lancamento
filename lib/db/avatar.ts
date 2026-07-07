@@ -201,11 +201,13 @@ async function queryPorDimensao(idLancamento: string, dimensao: AvatarDimensao):
 // Comparativo global Avatar (lead pré-venda) x Pesquisa de Alunos (pós-venda).
 // Normaliza renda e formação do avatar (texto livre/faixas inconsistentes entre lançamentos)
 // para as mesmas categorias já usadas em pesquisa_alunos, sem alterar nenhum pipeline de ingestão.
-export async function getAvatarComparativoGlobal() {
+export async function getAvatarComparativoGlobal(idLancamento?: string) {
+  const filtro = idLancamento || null // null = sem filtro (todos)
+
   const [sexo, renda, formacao] = await Promise.all([
     prisma.$queryRaw<{ sexo: string; total: number }[]>`
       SELECT COALESCE(sexo, 'N/A') AS sexo, COUNT(*)::int AS total
-      FROM avatar WHERE sexo IS NOT NULL
+      FROM avatar WHERE sexo IS NOT NULL AND (${filtro}::text IS NULL OR id_lancamento = ${filtro})
       GROUP BY sexo ORDER BY total DESC
     `,
     prisma.$queryRaw<{ renda: string; total: number }[]>`
@@ -221,7 +223,7 @@ export async function getAvatarComparativoGlobal() {
         COUNT(*)::int AS total
       FROM (
         SELECT NULLIF(regexp_replace(substring(renda_familiar from '[0-9.]+'), '\\.', '', 'g'), '')::numeric AS n
-        FROM avatar WHERE renda_familiar IS NOT NULL
+        FROM avatar WHERE renda_familiar IS NOT NULL AND (${filtro}::text IS NULL OR id_lancamento = ${filtro})
       ) t
       GROUP BY renda
     `,
@@ -236,7 +238,7 @@ export async function getAvatarComparativoGlobal() {
           ELSE 'Outras áreas'
         END AS formacao,
         COUNT(*)::int AS total
-      FROM avatar WHERE formacao_universitaria IS NOT NULL
+      FROM avatar WHERE formacao_universitaria IS NOT NULL AND (${filtro}::text IS NULL OR id_lancamento = ${filtro})
       GROUP BY formacao
     `,
   ])
@@ -282,6 +284,38 @@ export async function getQualificacaoPorTipo(idLancamento: string): Promise<Qual
       ROUND(COUNT(*) FILTER (WHERE qualificado)::numeric / NULLIF(COUNT(*), 0) * 100, 1)::float AS pct_qualificado
     FROM base
     GROUP BY tipo
+    ORDER BY total DESC
+  `
+}
+
+// Mesma regra de qualificação, mas por anúncio individual.
+// avatar.utm_content bate com trafego_meta.anuncio (ex.: "AD02_VID_Flipchart_Novo"),
+// permitindo responder "qual anúncio trouxe mais lead qualificado".
+export type QualificacaoAnuncio = {
+  anuncio: string
+  qualificados: number
+  total: number
+  pct_qualificado: number
+}
+
+export async function getQualificacaoPorAnuncio(idLancamento: string): Promise<QualificacaoAnuncio[]> {
+  return prisma.$queryRaw<QualificacaoAnuncio[]>`
+    WITH base AS (
+      SELECT
+        utm_content AS anuncio,
+        (formacao_universitaria ILIKE '%admin%' OR formacao_universitaria ILIKE '%contab%' OR formacao_universitaria ILIKE '%econ%')
+        AND NULLIF(regexp_replace(substring(renda_familiar from '[0-9.]+'), '\\.', '', 'g'), '')::numeric >= 5000
+        AS qualificado
+      FROM avatar
+      WHERE id_lancamento = ${idLancamento} AND utm_content IS NOT NULL AND utm_content != ''
+    )
+    SELECT
+      anuncio,
+      COUNT(*) FILTER (WHERE qualificado)::int AS qualificados,
+      COUNT(*)::int AS total,
+      ROUND(COUNT(*) FILTER (WHERE qualificado)::numeric / NULLIF(COUNT(*), 0) * 100, 1)::float AS pct_qualificado
+    FROM base
+    GROUP BY anuncio
     ORDER BY total DESC
   `
 }

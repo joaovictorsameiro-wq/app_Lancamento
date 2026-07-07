@@ -56,6 +56,17 @@ type Anuncio = {
   cpl: number | null
 }
 
+type QualificacaoAnuncio = {
+  anuncio: string
+  qualificados: number
+  total: number
+  pct_qualificado: number
+}
+
+function hojeISO() {
+  return new Date().toISOString().slice(0, 10)
+}
+
 const TIPO_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
   captacao_pq: { label: 'Captação Quente',  color: 'text-blue-400',   bg: 'bg-blue-500/10 border-blue-500/20',   icon: Zap },
   captacao_pf: { label: 'Captação Fria',    color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/20', icon: Users },
@@ -89,32 +100,43 @@ export default function TrafegoPage() {
   const [campanhas, setCampanhas] = useState<Campanha[]>([])
   const [diario, setDiario]       = useState<DiarioDado[]>([])
   const [qualificacao, setQualificacao] = useState<Qualificacao[]>([])
+  const [qualifPorAnuncio, setQualifPorAnuncio] = useState<QualificacaoAnuncio[]>([])
   const [anuncios, setAnuncios]   = useState<Anuncio[]>([])
   const [loading, setLoading]     = useState(false)
   const [filtroCampanha, setFiltro] = useState<string>('todos')
+  const [dataInicio, setDataInicio] = useState('')
+  const [dataFim, setDataFim]       = useState('')
 
   const fetchAll = useCallback(async () => {
     if (!lancamentoId) return
     setLoading(true)
     try {
-      const [b, c, d, q, a] = await Promise.all([
+      const periodo = new URLSearchParams()
+      if (dataInicio) periodo.set('dataInicio', dataInicio)
+      if (dataFim)    periodo.set('dataFim', dataFim)
+
+      const [b, c, d, q, a, qa] = await Promise.all([
         fetch(`/api/trafego?id=${lancamentoId}&view=breakdown`).then(r => r.json()),
         fetch(`/api/trafego?id=${lancamentoId}&view=campanhas`).then(r => r.json()),
         fetch(`/api/trafego?id=${lancamentoId}&view=diario`).then(r => r.json()),
         fetch(`/api/trafego?id=${lancamentoId}&view=qualificacao`).then(r => r.json()),
-        fetch(`/api/trafego?id=${lancamentoId}&view=anuncios`).then(r => r.json()),
+        fetch(`/api/trafego?id=${lancamentoId}&view=anuncios&${periodo}`).then(r => r.json()),
+        fetch(`/api/trafego?id=${lancamentoId}&view=qualificacao-anuncio`).then(r => r.json()),
       ])
       setBreakdown(Array.isArray(b) ? b : [])
       setCampanhas(Array.isArray(c) ? c : [])
       setDiario(Array.isArray(d) ? d : [])
       setQualificacao(Array.isArray(q) ? q : [])
       setAnuncios(Array.isArray(a) ? a : [])
+      setQualifPorAnuncio(Array.isArray(qa) ? qa : [])
     } finally {
       setLoading(false)
     }
-  }, [lancamentoId])
+  }, [lancamentoId, dataInicio, dataFim])
 
   useEffect(() => { fetchAll() }, [fetchAll])
+
+  const qualifPorAnuncioMap = new Map(qualifPorAnuncio.map(q => [q.anuncio, q]))
 
   // Derivados
   const totalGasto    = breakdown.reduce((s, r) => s + r.gasto, 0)
@@ -394,9 +416,40 @@ export default function TrafegoPage() {
 
       {/* Tabela de anúncios */}
       <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
-        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
-          Performance por Anúncio · {anuncios.length}
-        </p>
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+            Performance por Anúncio · {anuncios.length}
+          </p>
+          <div className="flex items-center gap-1.5">
+            <input
+              type="date"
+              value={dataInicio}
+              onChange={e => setDataInicio(e.target.value)}
+              className="rounded-lg border border-gray-700 bg-gray-800/80 px-2 py-1 text-xs text-gray-200"
+            />
+            <span className="text-gray-600 text-xs">até</span>
+            <input
+              type="date"
+              value={dataFim}
+              onChange={e => setDataFim(e.target.value)}
+              className="rounded-lg border border-gray-700 bg-gray-800/80 px-2 py-1 text-xs text-gray-200"
+            />
+            <button
+              onClick={() => { const h = hojeISO(); setDataInicio(h); setDataFim(h) }}
+              className="text-xs px-2.5 py-1 rounded-full border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+            >
+              Hoje
+            </button>
+            {(dataInicio || dataFim) && (
+              <button
+                onClick={() => { setDataInicio(''); setDataFim('') }}
+                className="text-xs px-2.5 py-1 rounded-full border border-gray-700 text-gray-500 hover:text-gray-300"
+              >
+                Limpar
+              </button>
+            )}
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead>
@@ -408,16 +461,19 @@ export default function TrafegoPage() {
                 <th className="pb-2 text-right text-gray-400 font-medium">CPL</th>
                 <th className="pb-2 text-right text-gray-400 font-medium">CTR</th>
                 <th className="pb-2 text-right text-gray-400 font-medium">Cliques</th>
+                <th className="pb-2 text-right text-gray-400 font-medium">% Qualif.</th>
               </tr>
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={7} className="py-8 text-center text-gray-500">Carregando...</td></tr>
+                <tr><td colSpan={8} className="py-8 text-center text-gray-500">Carregando...</td></tr>
               )}
               {!loading && anuncios.length === 0 && (
-                <tr><td colSpan={7} className="py-8 text-center text-gray-500">Nenhum anúncio encontrado</td></tr>
+                <tr><td colSpan={8} className="py-8 text-center text-gray-500">Nenhum anúncio encontrado no período</td></tr>
               )}
-              {anuncios.slice(0, 20).map((a, i) => (
+              {anuncios.slice(0, 20).map((a, i) => {
+                const qa = qualifPorAnuncioMap.get(a.anuncio)
+                return (
                 <tr key={i} className="border-b border-gray-800/60 hover:bg-gray-800/20">
                   <td className="py-2.5 pr-4">
                     <span className="text-gray-200 max-w-xs truncate block cursor-help" title={a.anuncio}>
@@ -446,8 +502,14 @@ export default function TrafegoPage() {
                   <td className="py-2.5 text-right text-gray-500 tabular-nums">
                     {a.cliques > 0 ? a.cliques.toLocaleString('pt-BR') : '—'}
                   </td>
+                  <td className="py-2.5 text-right tabular-nums">
+                    {qa
+                      ? <span className="text-emerald-400 font-medium" title={`${qa.qualificados} de ${qa.total} respostas de avatar`}>{qa.pct_qualificado}%</span>
+                      : <span className="text-gray-600">—</span>}
+                  </td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         </div>

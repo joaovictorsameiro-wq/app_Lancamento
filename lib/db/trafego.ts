@@ -27,7 +27,9 @@ export async function getTrafegoAgregado(idLancamento: string) {
   return result
 }
 
-export async function getTrafegoAnuncios(idLancamento: string) {
+export async function getTrafegoAnuncios(idLancamento: string, dataInicio?: string, dataFim?: string) {
+  const inicio = dataInicio || null // null = sem limite inferior
+  const fim    = dataFim    || null // null = sem limite superior
   const result = await prisma.$queryRaw<AnuncioScore[]>`
     SELECT
       anuncio,
@@ -42,6 +44,8 @@ export async function getTrafegoAnuncios(idLancamento: string) {
       CASE WHEN SUM(leads) > 0 THEN SUM(total_gasto) / SUM(leads) ELSE NULL END AS cpl
     FROM trafego_meta
     WHERE id_lancamento = ${idLancamento}
+      AND (${inicio}::date IS NULL OR data >= ${inicio}::date)
+      AND (${fim}::date IS NULL OR data <= ${fim}::date)
     GROUP BY anuncio, conjunto_anuncio, campanha
     ORDER BY leads DESC NULLS LAST
   `

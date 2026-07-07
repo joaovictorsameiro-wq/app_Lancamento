@@ -7,22 +7,25 @@ import {
   getTrafegoBreakdown,
   getTrafegoCampanhas,
 } from '../../../lib/db/trafego'
-import { getQualificacaoPorTipo } from '../../../lib/db/avatar'
+import { getQualificacaoPorTipo, getQualificacaoPorAnuncio } from '../../../lib/db/avatar'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const id = searchParams.get('id')
   const view = searchParams.get('view') ?? 'diario'
+  const dataInicio = searchParams.get('dataInicio') ?? undefined
+  const dataFim    = searchParams.get('dataFim') ?? undefined
 
   if (!id) return NextResponse.json({ error: 'id obrigatório' }, { status: 400 })
 
   try {
     let data
     if (view === 'qualificacao') data = await getQualificacaoPorTipo(id)
+    else if (view === 'qualificacao-anuncio') data = await getQualificacaoPorAnuncio(id)
     else if (view === 'breakdown') data = await getTrafegoBreakdown(id)
     else if (view === 'campanhas') data = await getTrafegoCampanhas(id)
     else if (view === 'agregado') data = await getTrafegoAgregado(id)
-    else if (view === 'anuncios') data = await getTrafegoAnuncios(id)
+    else if (view === 'anuncios') data = await getTrafegoAnuncios(id, dataInicio, dataFim)
     else if (view === 'diario') data = await getTrafegoDiario(id)
     else data = await getTrafegoByLancamento(id)
 
