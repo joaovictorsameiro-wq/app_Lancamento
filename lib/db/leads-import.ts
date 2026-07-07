@@ -67,6 +67,7 @@ export type ResultadoImportacaoLeads = {
   totalLinhas: number
   semEmail: number
   semLancamentoIdentificavel: number
+  atribuidosAoLancamentoAtivo: number // sem LC na utm_campaign (ex: orgânico/YouTube), atribuídos ao lançamento ativo
   novosLeads: number
   leadsAtualizados: number // já existia, algum campo de UTM foi preenchido (não sobrescrito)
   semMudanca: number
@@ -87,10 +88,16 @@ export async function importarLeads(buffer: Buffer, nomeArquivo: string): Promis
     totalLinhas: linhas.length,
     semEmail: 0,
     semLancamentoIdentificavel: 0,
+    atribuidosAoLancamentoAtivo: 0,
     novosLeads: 0,
     leadsAtualizados: 0,
     semMudanca: 0,
   }
+
+  const ativoRows = await prisma.$queryRaw<{ codigo: string }[]>`
+    SELECT codigo FROM lancamentos WHERE status = 'ativo' LIMIT 1
+  `
+  const lancamentoAtivo = ativoRows[0]?.codigo ?? null
 
   // 1) Histórico bruto — toda linha, sempre, em lote.
   for (const grupo of chunk(linhas, 500)) {
@@ -105,11 +112,16 @@ export async function importarLeads(buffer: Buffer, nomeArquivo: string): Promis
   }
 
   // 2) Deduplica candidatos válidos por (id_lancamento, email) — mescla UTMs dentro do próprio arquivo.
+  // Quando a utm_campaign não traz um código de lançamento (ex: orgânico/YouTube), atribui ao lançamento ativo.
   const candidatos = new Map<string, LinhaLead & { id_lancamento: string }>()
   for (const l of linhas) {
     if (!l.email) { resultado.semEmail++; continue }
-    const idLancamento = extrairLancamento(l.utm_campaign)
-    if (!idLancamento) { resultado.semLancamentoIdentificavel++; continue }
+    let idLancamento = extrairLancamento(l.utm_campaign)
+    if (!idLancamento) {
+      if (!lancamentoAtivo) { resultado.semLancamentoIdentificavel++; continue }
+      idLancamento = lancamentoAtivo
+      resultado.atribuidosAoLancamentoAtivo++
+    }
 
     const chave = `${idLancamento}::${l.email}`
     const existente = candidatos.get(chave)

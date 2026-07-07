@@ -104,6 +104,7 @@ export default function LeadsImportPage() {
             <Stat label="Leads novos" value={resultado.novosLeads} highlight="emerald" />
             <Stat label="UTM preenchida" value={resultado.leadsAtualizados} highlight="blue" />
             <Stat label="Sem mudança" value={resultado.semMudanca} />
+            <Stat label="Atribuídos ao lanç. ativo (orgânico)" value={resultado.atribuidosAoLancamentoAtivo} />
             <Stat label="Sem e-mail" value={resultado.semEmail} />
             <Stat label="Sem lançamento identificável" value={resultado.semLancamentoIdentificavel} />
           </div>
