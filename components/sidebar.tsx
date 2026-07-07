@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, Activity, TrendingUp, DollarSign, RefreshCw,
   Calculator, ShieldCheck, ChevronRight, ChevronDown, Zap, BarChart2, Users,
-  GitFork, LogOut, X, CheckSquare, Sun, Moon, Link2, FolderClosed,
+  GitFork, LogOut, X, CheckSquare, Sun, Moon, Link2, FolderClosed, Sheet,
 } from 'lucide-react'
 
 const NAV = [
@@ -16,6 +16,7 @@ const NAV = [
 ]
 
 const NAV_OUTROS = [
+  { href: '/planilhas',   label: 'Planilhas',        icon: Sheet,           desc: 'Fonte das pesquisas por lançamento' },
   { href: '/checklist',   label: 'Checklist',        icon: CheckSquare,     desc: 'Tarefas do lançamento' },
   { href: '/links',       label: 'Links',             icon: Link2,           desc: 'URLs e UTMs do lançamento' },
   { href: '/automacoes',  label: 'Automações',        icon: Zap,             desc: 'Monitor de N8N' },
