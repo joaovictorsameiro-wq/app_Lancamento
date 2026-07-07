@@ -1,11 +1,11 @@
-import { google } from 'googleapis'
+import { JWT } from 'google-auth-library'
 
 function getAuth() {
   const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL
   const key = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY?.replace(/\\n/g, '\n')
   if (!email || !key) throw new Error('Credenciais do Google Sheets não configuradas (.env.local)')
 
-  return new google.auth.JWT({
+  return new JWT({
     email,
     key,
     scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
@@ -15,13 +15,20 @@ function getAuth() {
 // Lê a primeira aba de uma planilha e retorna como array de objetos,
 // usando a primeira linha como cabeçalho (mesmo texto das perguntas do Google Forms).
 export async function lerPlanilhaComoObjetos(spreadsheetId: string): Promise<Record<string, string>[]> {
-  const sheets = google.sheets({ version: 'v4', auth: getAuth() })
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range: 'A:ZZ',
-  })
+  const auth = getAuth()
+  const { token } = await auth.getAccessToken()
 
-  const rows = res.data.values ?? []
+  const res = await fetch(
+    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/A:ZZ`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  )
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(`Erro ao ler planilha (${res.status}): ${body}`)
+  }
+  const data = await res.json() as { values?: string[][] }
+
+  const rows = data.values ?? []
   if (rows.length < 2) return []
 
   const headers = rows[0].map(h => String(h ?? '').trim())
