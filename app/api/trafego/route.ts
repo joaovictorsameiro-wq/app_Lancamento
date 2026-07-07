@@ -7,6 +7,7 @@ import {
   getTrafegoBreakdown,
   getTrafegoCampanhas,
 } from '../../../lib/db/trafego'
+import { getQualificacaoPorTipo } from '../../../lib/db/avatar'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -17,7 +18,8 @@ export async function GET(req: NextRequest) {
 
   try {
     let data
-    if (view === 'breakdown') data = await getTrafegoBreakdown(id)
+    if (view === 'qualificacao') data = await getQualificacaoPorTipo(id)
+    else if (view === 'breakdown') data = await getTrafegoBreakdown(id)
     else if (view === 'campanhas') data = await getTrafegoCampanhas(id)
     else if (view === 'agregado') data = await getTrafegoAgregado(id)
     else if (view === 'anuncios') data = await getTrafegoAnuncios(id)

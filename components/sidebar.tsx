@@ -5,19 +5,22 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import {
   LayoutDashboard, Activity, TrendingUp, DollarSign, RefreshCw,
-  Calculator, ShieldCheck, ChevronRight, Zap, BarChart2, Users,
-  GitFork, LogOut, X, CheckSquare, Sun, Moon, Link2,
+  Calculator, ShieldCheck, ChevronRight, ChevronDown, Zap, BarChart2, Users,
+  GitFork, LogOut, X, CheckSquare, Sun, Moon, Link2, FolderClosed,
 } from 'lucide-react'
 
 const NAV = [
+  { href: '/visao-geral', label: 'Visão Geral',      icon: LayoutDashboard, desc: 'KPIs consolidados' },
+  { href: '/trafego',     label: 'Tráfego Meta',      icon: BarChart2,       desc: 'Captação · Aquecimento · Venda' },
+  { href: '/perfil',      label: 'Perfil Comprador',  icon: Users,           desc: 'Formação · Renda · Perfil' },
+]
+
+const NAV_OUTROS = [
   { href: '/checklist',   label: 'Checklist',        icon: CheckSquare,     desc: 'Tarefas do lançamento' },
   { href: '/links',       label: 'Links',             icon: Link2,           desc: 'URLs e UTMs do lançamento' },
   { href: '/automacoes',  label: 'Automações',        icon: Zap,             desc: 'Monitor de N8N' },
-  { href: '/visao-geral', label: 'Visão Geral',      icon: LayoutDashboard, desc: 'KPIs consolidados' },
   { href: '/tempo-real',  label: 'Tempo Real',        icon: Activity,        desc: 'Funil ao vivo' },
-  { href: '/trafego',     label: 'Tráfego Meta',      icon: BarChart2,       desc: 'Captação · Aquecimento · Venda' },
   { href: '/forecasting', label: 'Forecasting',       icon: TrendingUp,      desc: 'Projeções e comparativos' },
-  { href: '/perfil',      label: 'Perfil Comprador',  icon: Users,           desc: 'Formação · Renda · Perfil' },
   { href: '/financeiro',  label: 'DRE Dinâmico',      icon: DollarSign,      desc: 'Conciliação financeira' },
   { href: '/recuperacao', label: 'Recuperação',        icon: RefreshCw,       desc: 'Inadimplência e chargeback' },
   { href: '/funil',       label: 'Canvas de Funil',   icon: GitFork,         desc: 'Visualização do funil' },
@@ -29,11 +32,17 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname()
   const router = useRouter()
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
+  const outrosAtivo = NAV_OUTROS.some(item => pathname === item.href || pathname.startsWith(item.href))
+  const [outrosAberto, setOutrosAberto] = useState(false)
 
   useEffect(() => {
     const saved = localStorage.getItem('theme')
     setTheme(saved === 'light' ? 'light' : 'dark')
   }, [])
+
+  useEffect(() => {
+    if (outrosAtivo) setOutrosAberto(true)
+  }, [outrosAtivo])
 
   function toggleTheme() {
     const next = theme === 'dark' ? 'light' : 'dark'
@@ -87,6 +96,44 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
             </Link>
           )
         })}
+
+        {/* Outros */}
+        <button
+          onClick={() => setOutrosAberto(v => !v)}
+          className={`
+            w-full group flex items-center gap-2.5 rounded-lg px-3 py-2 transition-all
+            ${outrosAtivo ? 'text-emerald-400' : 'text-gray-400 hover:bg-gray-800/60 hover:text-gray-200'}
+          `}
+        >
+          <FolderClosed size={15} className="shrink-0" />
+          <div className="min-w-0 flex-1 text-left">
+            <p className="truncate text-xs font-medium">Outros</p>
+          </div>
+          {outrosAberto ? <ChevronDown size={11} className="shrink-0" /> : <ChevronRight size={11} className="shrink-0" />}
+        </button>
+
+        {outrosAberto && (
+          <div className="space-y-0.5 pl-2">
+            {NAV_OUTROS.map(item => {
+              const active = pathname === item.href || pathname.startsWith(item.href)
+              return (
+                <Link key={item.href} href={item.href} className={`
+                  group flex items-center gap-2.5 rounded-lg px-3 py-2 transition-all
+                  ${active
+                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                    : 'text-gray-500 hover:bg-gray-800/60 hover:text-gray-200 border border-transparent'
+                  }
+                `}>
+                  <item.icon size={14} className="shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-xs font-medium">{item.label}</p>
+                  </div>
+                  {active && <ChevronRight size={11} className="shrink-0 text-emerald-500" />}
+                </Link>
+              )
+            })}
+          </div>
+        )}
       </nav>
 
       {/* Footer */}

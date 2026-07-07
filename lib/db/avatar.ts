@@ -198,11 +198,92 @@ async function queryPorDimensao(idLancamento: string, dimensao: AvatarDimensao):
   }
 }
 
+// Comparativo global Avatar (lead pré-venda) x Pesquisa de Alunos (pós-venda).
+// Normaliza renda e formação do avatar (texto livre/faixas inconsistentes entre lançamentos)
+// para as mesmas categorias já usadas em pesquisa_alunos, sem alterar nenhum pipeline de ingestão.
+export async function getAvatarComparativoGlobal() {
+  const [sexo, renda, formacao] = await Promise.all([
+    prisma.$queryRaw<{ sexo: string; total: number }[]>`
+      SELECT COALESCE(sexo, 'N/A') AS sexo, COUNT(*)::int AS total
+      FROM avatar WHERE sexo IS NOT NULL
+      GROUP BY sexo ORDER BY total DESC
+    `,
+    prisma.$queryRaw<{ renda: string; total: number }[]>`
+      SELECT
+        CASE
+          WHEN n IS NULL THEN 'N/A'
+          WHEN n <= 3000  THEN 'Ate R$3.000'
+          WHEN n <= 7000  THEN 'R$3.001 a R$7.000'
+          WHEN n <= 10000 THEN 'R$7.001 a R$10.000'
+          WHEN n <= 14000 THEN 'R$10.001 a R$14.000'
+          ELSE 'Acima de R$14.000'
+        END AS renda,
+        COUNT(*)::int AS total
+      FROM (
+        SELECT NULLIF(regexp_replace(substring(renda_familiar from '[0-9.]+'), '\\.', '', 'g'), '')::numeric AS n
+        FROM avatar WHERE renda_familiar IS NOT NULL
+      ) t
+      GROUP BY renda
+    `,
+    prisma.$queryRaw<{ formacao: string; total: number }[]>`
+      SELECT
+        CASE
+          WHEN formacao_universitaria ILIKE '%direito%'       THEN 'Direito'
+          WHEN formacao_universitaria ILIKE '%contabilidade%' THEN 'Contabilidade'
+          WHEN formacao_universitaria ILIKE '%administra%'    THEN 'Administração'
+          WHEN formacao_universitaria ILIKE '%economia%'      THEN 'Economia'
+          WHEN formacao_universitaria ILIKE '%engenharia%'    THEN 'Engenharia'
+          ELSE 'Outras áreas'
+        END AS formacao,
+        COUNT(*)::int AS total
+      FROM avatar WHERE formacao_universitaria IS NOT NULL
+      GROUP BY formacao
+    `,
+  ])
+  return { sexo, renda, formacao }
+}
+
 export async function getAvatarConversaoCruzada(
   idLancamento: string,
   dimensao: AvatarDimensao = 'formacao'
 ): Promise<AvatarConversao[]> {
   return queryPorDimensao(idLancamento, dimensao)
+}
+
+// Qualificação de lead: mesma regra usada no relatório Data Studio —
+// formação em Admin/Contab/Econ E renda familiar a partir de R$5.000,01.
+export type QualificacaoResumo = {
+  tipo: string
+  qualificados: number
+  total: number
+  pct_qualificado: number
+}
+
+export async function getQualificacaoPorTipo(idLancamento: string): Promise<QualificacaoResumo[]> {
+  return prisma.$queryRaw<QualificacaoResumo[]>`
+    WITH base AS (
+      SELECT
+        CASE
+          WHEN utm_campaign ILIKE '%LEAD%' AND (utm_campaign ILIKE '%_PQ_%' OR utm_campaign ILIKE '%PQ_%' OR utm_campaign ILIKE '%_PQ') THEN 'captacao_pq'
+          WHEN utm_campaign ILIKE '%LEAD%' AND (utm_campaign ILIKE '%_PF_%' OR utm_campaign ILIKE '%PF_%' OR utm_campaign ILIKE '%_PF') THEN 'captacao_pf'
+          WHEN utm_campaign ILIKE '%LEAD%' OR utm_campaign ILIKE '%Captacao%' THEN 'captacao'
+          ELSE 'outros'
+        END AS tipo,
+        (formacao_universitaria ILIKE '%admin%' OR formacao_universitaria ILIKE '%contab%' OR formacao_universitaria ILIKE '%econ%')
+        AND NULLIF(regexp_replace(substring(renda_familiar from '[0-9.]+'), '\\.', '', 'g'), '')::numeric >= 5000
+        AS qualificado
+      FROM avatar
+      WHERE id_lancamento = ${idLancamento}
+    )
+    SELECT
+      tipo,
+      COUNT(*) FILTER (WHERE qualificado)::int AS qualificados,
+      COUNT(*)::int AS total,
+      ROUND(COUNT(*) FILTER (WHERE qualificado)::numeric / NULLIF(COUNT(*), 0) * 100, 1)::float AS pct_qualificado
+    FROM base
+    GROUP BY tipo
+    ORDER BY total DESC
+  `
 }
 
 export type AvatarConversao = {

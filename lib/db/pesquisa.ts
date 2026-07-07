@@ -65,4 +65,10 @@ export async function getPesquisaResumo() {
   return { sexo, formacao, renda, academico, excel, mat, curso, procurava, totalRespostas }
 }
 
-export type PesquisaResumo = Awaited<ReturnType<typeof getPesquisaResumo>>
+export type PesquisaResumo = Awaited<ReturnType<typeof getPesquisaResumo>> & {
+  comparativoLead?: {
+    sexo: { sexo: string; total: number }[]
+    renda: { renda: string; total: number }[]
+    formacao: { formacao: string; total: number }[]
+  }
+}

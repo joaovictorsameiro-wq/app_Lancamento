@@ -1,12 +1,35 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Users, BookOpen, DollarSign, GraduationCap, BarChart2, Search, Loader2 } from 'lucide-react'
+import { Users, BookOpen, DollarSign, GraduationCap, BarChart2, Search, Loader2, ArrowLeftRight } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from 'recharts'
 import type { PesquisaResumo } from '../../../lib/db/pesquisa'
+
+const RENDA_ORDEM = ['Ate R$3.000', 'R$3.001 a R$7.000', 'R$7.001 a R$10.000', 'R$10.001 a R$14.000', 'Acima de R$14.000']
+const FORMACAO_ORDEM = ['Administração', 'Contabilidade', 'Direito', 'Economia', 'Engenharia', 'Outras áreas']
+
+function ComparativoBar({ data }: { data: { name: string; Aluno: number; Lead: number }[] }) {
+  return (
+    <ResponsiveContainer width="100%" height={220}>
+      <BarChart data={data} margin={{ left: 8, right: 8 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" vertical={false} />
+        <XAxis dataKey="name" tick={{ fill: '#9ca3af', fontSize: 10 }} axisLine={false} tickLine={false} />
+        <YAxis tick={{ fill: '#6b7280', fontSize: 10 }} axisLine={false} tickLine={false} unit="%" />
+        <Tooltip
+          contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 8 }}
+          labelStyle={{ color: '#9ca3af', fontSize: 11 }}
+          formatter={(v: number) => `${v}%`}
+        />
+        <Legend wrapperStyle={{ fontSize: 11 }} />
+        <Bar dataKey="Aluno" fill="#10b981" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="Lead" fill="#6366f1" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}
 
 // ── Paleta ────────────────────────────────────────────────────────────────────
 const COLORS = ['#10b981', '#6366f1', '#f59e0b', '#3b82f6', '#ec4899', '#8b5cf6', '#14b8a6']
@@ -163,6 +186,51 @@ export default function PerfilPage() {
         <StatCard label="Feminino"             value={pct(feminino,  total)} sub={`${feminino} alunos`} />
         <StatCard label="Pós-graduados ou +"   value={pct((data.academico.find(a => a.nivel_academico === 'Pós-graduação / MBA')?.total ?? 0) + (data.academico.find(a => a.nivel_academico === 'Mestrado')?.total ?? 0) + (data.academico.find(a => a.nivel_academico === 'Doutorado / Pós-doc')?.total ?? 0), total)} sub="MBA, Mestrado, Doutorado" />
       </div>
+
+      {/* Comparativo Aluno x Lead */}
+      {data.comparativoLead && (() => {
+        const lead = data.comparativoLead
+        const leadSexoTotal = lead.sexo.filter(s => s.sexo === 'Masculino' || s.sexo === 'Feminino').reduce((a, b) => a + b.total, 0)
+        const sexoComp = ['Masculino', 'Feminino'].map(name => ({
+          name,
+          Aluno: parseFloat(pct(name === 'Masculino' ? masculino : feminino, total)),
+          Lead: leadSexoTotal > 0 ? parseFloat(pct(lead.sexo.find(s => s.sexo === name)?.total ?? 0, leadSexoTotal)) : 0,
+        }))
+
+        const leadRendaTotal = lead.renda.filter(r => r.renda !== 'N/A').reduce((a, b) => a + b.total, 0)
+        const rendaComp = RENDA_ORDEM.map(name => ({
+          name: RENDA_LABEL[name] ?? name,
+          Aluno: parseFloat(pct(data.renda.find(r => r.renda === name)?.total ?? 0, total)),
+          Lead: leadRendaTotal > 0 ? parseFloat(pct(lead.renda.find(r => r.renda === name)?.total ?? 0, leadRendaTotal)) : 0,
+        }))
+
+        const leadFormacaoTotal = lead.formacao.reduce((a, b) => a + b.total, 0)
+        const formacaoComp = FORMACAO_ORDEM.map(name => ({
+          name,
+          Aluno: parseFloat(pct(data.formacao.find(f => f.formacao === name)?.total ?? 0, total)),
+          Lead: leadFormacaoTotal > 0 ? parseFloat(pct(lead.formacao.find(f => f.formacao === name)?.total ?? 0, leadFormacaoTotal)) : 0,
+        }))
+
+        return (
+          <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-5 space-y-6">
+            <SectionTitle icon={ArrowLeftRight} title="Aluno × Lead" sub="Comprador (pós-venda) comparado com quem só respondeu o avatar (pré-venda) — % dentro de cada grupo" />
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+              <div>
+                <p className="text-xs text-gray-400 mb-2">Gênero</p>
+                <ComparativoBar data={sexoComp} />
+              </div>
+              <div>
+                <p className="text-xs text-gray-400 mb-2">Renda familiar</p>
+                <ComparativoBar data={rendaComp} />
+              </div>
+              <div>
+                <p className="text-xs text-gray-400 mb-2">Formação</p>
+                <ComparativoBar data={formacaoComp} />
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Linha 1: Formação + Renda */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

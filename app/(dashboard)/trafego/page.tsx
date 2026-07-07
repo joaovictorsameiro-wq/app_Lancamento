@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { BarChart2, TrendingDown, Users, Zap, Target, Bell, ShoppingCart } from 'lucide-react'
+import { BarChart2, TrendingDown, Users, Zap, Target, Bell, ShoppingCart, BadgeCheck } from 'lucide-react'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
@@ -36,6 +36,26 @@ type DiarioDado = {
   cpl: number
 }
 
+type Qualificacao = {
+  tipo: string
+  qualificados: number
+  total: number
+  pct_qualificado: number
+}
+
+type Anuncio = {
+  anuncio: string
+  conjunto_anuncio: string
+  campanha: string
+  total_gasto: number
+  impressoes: number
+  cliques: number
+  leads: number
+  ctr_medio: number
+  cpc_medio: number
+  cpl: number | null
+}
+
 const TIPO_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
   captacao_pq: { label: 'Captação Quente',  color: 'text-blue-400',   bg: 'bg-blue-500/10 border-blue-500/20',   icon: Zap },
   captacao_pf: { label: 'Captação Fria',    color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/20', icon: Users },
@@ -68,6 +88,8 @@ export default function TrafegoPage() {
   const [breakdown, setBreakdown] = useState<Breakdown[]>([])
   const [campanhas, setCampanhas] = useState<Campanha[]>([])
   const [diario, setDiario]       = useState<DiarioDado[]>([])
+  const [qualificacao, setQualificacao] = useState<Qualificacao[]>([])
+  const [anuncios, setAnuncios]   = useState<Anuncio[]>([])
   const [loading, setLoading]     = useState(false)
   const [filtroCampanha, setFiltro] = useState<string>('todos')
 
@@ -75,14 +97,18 @@ export default function TrafegoPage() {
     if (!lancamentoId) return
     setLoading(true)
     try {
-      const [b, c, d] = await Promise.all([
+      const [b, c, d, q, a] = await Promise.all([
         fetch(`/api/trafego?id=${lancamentoId}&view=breakdown`).then(r => r.json()),
         fetch(`/api/trafego?id=${lancamentoId}&view=campanhas`).then(r => r.json()),
         fetch(`/api/trafego?id=${lancamentoId}&view=diario`).then(r => r.json()),
+        fetch(`/api/trafego?id=${lancamentoId}&view=qualificacao`).then(r => r.json()),
+        fetch(`/api/trafego?id=${lancamentoId}&view=anuncios`).then(r => r.json()),
       ])
       setBreakdown(Array.isArray(b) ? b : [])
       setCampanhas(Array.isArray(c) ? c : [])
       setDiario(Array.isArray(d) ? d : [])
+      setQualificacao(Array.isArray(q) ? q : [])
+      setAnuncios(Array.isArray(a) ? a : [])
     } finally {
       setLoading(false)
     }
@@ -189,6 +215,28 @@ export default function TrafegoPage() {
           </div>
         </div>
       </div>
+
+      {/* Qualificação de Lead */}
+      {qualificacao.length > 0 && (
+        <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+          <div className="flex items-center gap-1.5 mb-3">
+            <BadgeCheck size={13} className="text-emerald-400" />
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
+              Qualificação de Lead
+            </p>
+            <span className="text-[10px] text-gray-600">— formação (Admin/Contab/Econ) + renda ≥ R$5.000</span>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {qualificacao.map(q => (
+              <div key={q.tipo} className="rounded-lg border border-gray-800 bg-gray-950/50 p-3 space-y-1">
+                <p className="text-xs text-gray-500">{tipoLabel(q.tipo)}</p>
+                <p className="text-lg font-bold text-white">{q.pct_qualificado ?? 0}%</p>
+                <p className="text-xs text-gray-600">{q.qualificados} de {q.total} respostas</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Outros tipos de campanha */}
       {secundarios.length > 0 && (
@@ -340,6 +388,67 @@ export default function TrafegoPage() {
                 </tr>
               </tfoot>
             )}
+          </table>
+        </div>
+      </div>
+
+      {/* Tabela de anúncios */}
+      <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">
+          Performance por Anúncio · {anuncios.length}
+        </p>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-gray-800">
+                <th className="pb-2 text-left text-gray-400 font-medium">Anúncio</th>
+                <th className="pb-2 text-left text-gray-400 font-medium">Conjunto</th>
+                <th className="pb-2 text-right text-gray-400 font-medium">Gasto</th>
+                <th className="pb-2 text-right text-gray-400 font-medium">Leads</th>
+                <th className="pb-2 text-right text-gray-400 font-medium">CPL</th>
+                <th className="pb-2 text-right text-gray-400 font-medium">CTR</th>
+                <th className="pb-2 text-right text-gray-400 font-medium">Cliques</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading && (
+                <tr><td colSpan={7} className="py-8 text-center text-gray-500">Carregando...</td></tr>
+              )}
+              {!loading && anuncios.length === 0 && (
+                <tr><td colSpan={7} className="py-8 text-center text-gray-500">Nenhum anúncio encontrado</td></tr>
+              )}
+              {anuncios.slice(0, 20).map((a, i) => (
+                <tr key={i} className="border-b border-gray-800/60 hover:bg-gray-800/20">
+                  <td className="py-2.5 pr-4">
+                    <span className="text-gray-200 max-w-xs truncate block cursor-help" title={a.anuncio}>
+                      {a.anuncio}
+                    </span>
+                  </td>
+                  <td className="py-2.5 pr-4">
+                    <span className="text-gray-500 max-w-xs truncate block cursor-help" title={a.conjunto_anuncio}>
+                      {a.conjunto_anuncio}
+                    </span>
+                  </td>
+                  <td className="py-2.5 text-right text-gray-200 tabular-nums">{fmt_currency(a.total_gasto)}</td>
+                  <td className="py-2.5 text-right tabular-nums">
+                    {a.leads > 0
+                      ? <span className="text-emerald-400 font-medium">{a.leads.toLocaleString('pt-BR')}</span>
+                      : <span className="text-gray-600">—</span>}
+                  </td>
+                  <td className="py-2.5 text-right tabular-nums">
+                    {a.cpl != null
+                      ? <span className="text-blue-400">{fmt_currency(a.cpl)}</span>
+                      : <span className="text-gray-600">—</span>}
+                  </td>
+                  <td className="py-2.5 text-right text-gray-400 tabular-nums">
+                    {a.ctr_medio ? `${Number(a.ctr_medio).toFixed(2)}%` : '—'}
+                  </td>
+                  <td className="py-2.5 text-right text-gray-500 tabular-nums">
+                    {a.cliques > 0 ? a.cliques.toLocaleString('pt-BR') : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
           </table>
         </div>
       </div>
