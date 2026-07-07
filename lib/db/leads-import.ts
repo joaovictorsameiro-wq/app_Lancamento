@@ -118,7 +118,9 @@ export async function importarLeads(buffer: Buffer, nomeArquivo: string): Promis
     if (!l.email) { resultado.semEmail++; continue }
     let idLancamento = extrairLancamento(l.utm_campaign)
     if (!idLancamento) {
-      if (!lancamentoAtivo) { resultado.semLancamentoIdentificavel++; continue }
+      // Só assume "orgânico do lançamento ativo" se a utm_campaign tiver algum conteúdo real
+      // (ex: "youtube", "linkedin") sem o prefixo LC. Campo totalmente vazio não vira suposição.
+      if (!l.utm_campaign || !lancamentoAtivo) { resultado.semLancamentoIdentificavel++; continue }
       idLancamento = lancamentoAtivo
       resultado.atribuidosAoLancamentoAtivo++
     }
