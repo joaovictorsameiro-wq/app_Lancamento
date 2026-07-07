@@ -48,7 +48,7 @@ export default function PlanilhasPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ idLancamento: lc, tipo, url }),
     })
-    setInputs(prev => ({ ...prev, [key]: '' }))
+    setInputs(prev => { const next = { ...prev }; delete next[key]; return next })
     await carregar()
   }
 
@@ -99,7 +99,7 @@ export default function PlanilhasPage() {
                     <p className="text-xs text-gray-400">{label}</p>
                     <div className="flex gap-2">
                       <input
-                        value={inputs[key] ?? cfg?.spreadsheet_id ?? ''}
+                        value={key in inputs ? inputs[key] : (cfg?.spreadsheet_id ?? '')}
                         onChange={e => setInputs(prev => ({ ...prev, [key]: e.target.value }))}
                         placeholder="Cole o link ou ID da planilha"
                         className="flex-1 rounded-lg border border-gray-700 bg-gray-800/80 px-3 py-2 text-xs text-gray-200"
