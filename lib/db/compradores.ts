@@ -59,7 +59,9 @@ export type OrigemRow = {
   faturamento: number
 }
 
-async function origemPorCampo(idLancamento: string, campo: 'utm_content' | 'utm_campaign' | 'utm_source'): Promise<OrigemRow[]> {
+type CampoUtm = 'utm_content' | 'utm_campaign' | 'utm_source' | 'utm_medium' | 'utm_term'
+
+async function origemPorCampo(idLancamento: string, campo: CampoUtm): Promise<OrigemRow[]> {
   const coluna = Prisma.raw(campo)
   return prisma.$queryRaw<OrigemRow[]>`
     SELECT
@@ -77,12 +79,14 @@ async function origemPorCampo(idLancamento: string, campo: 'utm_content' | 'utm_
 }
 
 export async function getOrigemCompradores(idLancamento: string) {
-  const [porAnuncio, porCampanha, porPlataforma] = await Promise.all([
+  const [porAnuncio, porCampanha, porPlataforma, porMidia, porTermo] = await Promise.all([
     origemPorCampo(idLancamento, 'utm_content'),
     origemPorCampo(idLancamento, 'utm_campaign'),
     origemPorCampo(idLancamento, 'utm_source'),
+    origemPorCampo(idLancamento, 'utm_medium'),
+    origemPorCampo(idLancamento, 'utm_term'),
   ])
-  return { porAnuncio, porCampanha, porPlataforma }
+  return { porAnuncio, porCampanha, porPlataforma, porMidia, porTermo }
 }
 
 export type StatusCount = {

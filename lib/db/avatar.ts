@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '../prisma'
 
 export async function getAvatarDemografia(idLancamento: string) {
@@ -39,6 +40,84 @@ export async function getAvatarDemografia(idLancamento: string) {
   ])
 
   return { sexo, faixa_etaria, estado, formacao, renda }
+}
+
+// Perfil de avatar só de quem virou comprador aprovado nesse lançamento —
+// "como meu comprador pensa, quanto ganha" (não todo mundo que respondeu o avatar).
+export async function getAvatarCompradores(idLancamento: string) {
+  const compradoresCte = Prisma.sql`
+    SELECT DISTINCT lower(email) AS email FROM compradores
+    WHERE id_lancamento = ${idLancamento} AND status_pagamento = 'aprovado'
+  `
+
+  const [sexo, faixa_etaria, renda, formacao, experiencia, mais_atrativo, respostasAbertas, total] = await Promise.all([
+    prisma.$queryRaw<{ sexo: string; count: number }[]>`
+      WITH ce AS (${compradoresCte})
+      SELECT COALESCE(a.sexo, 'N/A') AS sexo, COUNT(*)::int AS count
+      FROM avatar a JOIN ce ON lower(a.email) = ce.email
+      WHERE a.id_lancamento = ${idLancamento}
+      GROUP BY sexo ORDER BY count DESC
+    `,
+    prisma.$queryRaw<{ faixa: string; count: number }[]>`
+      WITH ce AS (${compradoresCte})
+      SELECT
+        CASE
+          WHEN a.idade ~ '^[0-9]+$' AND a.idade::int < 25 THEN 'Até 24'
+          WHEN a.idade ~ '^[0-9]+$' AND a.idade::int BETWEEN 25 AND 34 THEN '25-34'
+          WHEN a.idade ~ '^[0-9]+$' AND a.idade::int BETWEEN 35 AND 44 THEN '35-44'
+          WHEN a.idade ~ '^[0-9]+$' AND a.idade::int BETWEEN 45 AND 54 THEN '45-54'
+          WHEN a.idade ~ '^[0-9]+$' THEN '55+'
+          ELSE 'N/A'
+        END AS faixa,
+        COUNT(*)::int AS count
+      FROM avatar a JOIN ce ON lower(a.email) = ce.email
+      WHERE a.id_lancamento = ${idLancamento}
+      GROUP BY faixa ORDER BY faixa
+    `,
+    prisma.$queryRaw<{ renda: string; count: number }[]>`
+      WITH ce AS (${compradoresCte})
+      SELECT COALESCE(a.renda_familiar, 'N/A') AS renda, COUNT(*)::int AS count
+      FROM avatar a JOIN ce ON lower(a.email) = ce.email
+      WHERE a.id_lancamento = ${idLancamento}
+      GROUP BY renda ORDER BY count DESC LIMIT 8
+    `,
+    prisma.$queryRaw<{ formacao: string; count: number }[]>`
+      WITH ce AS (${compradoresCte})
+      SELECT COALESCE(a.formacao_universitaria, 'N/A') AS formacao, COUNT(*)::int AS count
+      FROM avatar a JOIN ce ON lower(a.email) = ce.email
+      WHERE a.id_lancamento = ${idLancamento}
+      GROUP BY formacao ORDER BY count DESC LIMIT 8
+    `,
+    prisma.$queryRaw<{ experiencia: string; count: number }[]>`
+      WITH ce AS (${compradoresCte})
+      SELECT COALESCE(a.experiencia_profissional, 'N/A') AS experiencia, COUNT(*)::int AS count
+      FROM avatar a JOIN ce ON lower(a.email) = ce.email
+      WHERE a.id_lancamento = ${idLancamento}
+      GROUP BY experiencia ORDER BY count DESC LIMIT 8
+    `,
+    prisma.$queryRaw<{ mais_atrativo: string; count: number }[]>`
+      WITH ce AS (${compradoresCte})
+      SELECT COALESCE(a.mais_atrativo, 'N/A') AS mais_atrativo, COUNT(*)::int AS count
+      FROM avatar a JOIN ce ON lower(a.email) = ce.email
+      WHERE a.id_lancamento = ${idLancamento}
+      GROUP BY mais_atrativo ORDER BY count DESC LIMIT 8
+    `,
+    prisma.$queryRaw<{ pergunta_ao_claudio: string | null; desejos_desafios: string | null }[]>`
+      WITH ce AS (${compradoresCte})
+      SELECT a.pergunta_ao_claudio, a.desejos_desafios
+      FROM avatar a JOIN ce ON lower(a.email) = ce.email
+      WHERE a.id_lancamento = ${idLancamento}
+        AND (a.pergunta_ao_claudio IS NOT NULL OR a.desejos_desafios IS NOT NULL)
+      ORDER BY a.criado_em DESC LIMIT 15
+    `,
+    prisma.$queryRaw<{ total: number }[]>`
+      WITH ce AS (${compradoresCte})
+      SELECT COUNT(*)::int AS total FROM avatar a JOIN ce ON lower(a.email) = ce.email
+      WHERE a.id_lancamento = ${idLancamento}
+    `,
+  ])
+
+  return { sexo, faixa_etaria, renda, formacao, experiencia, mais_atrativo, respostasAbertas, total: total[0]?.total ?? 0 }
 }
 
 // Dimensões disponíveis para cruzamento com conversão

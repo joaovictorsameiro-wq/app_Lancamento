@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getAvatarDemografia, getAvatarConversaoCruzada, type AvatarDimensao } from '../../../lib/db/avatar'
+import { getAvatarDemografia, getAvatarConversaoCruzada, getAvatarCompradores, type AvatarDimensao } from '../../../lib/db/avatar'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -10,9 +10,10 @@ export async function GET(req: NextRequest) {
   if (!id) return NextResponse.json({ error: 'id obrigatório' }, { status: 400 })
 
   try {
-    const data = view === 'conversao'
-      ? await getAvatarConversaoCruzada(id, dimensao)
-      : await getAvatarDemografia(id)
+    let data
+    if (view === 'conversao') data = await getAvatarConversaoCruzada(id, dimensao)
+    else if (view === 'compradores') data = await getAvatarCompradores(id)
+    else data = await getAvatarDemografia(id)
     return NextResponse.json(data)
   } catch (err) {
     console.error('[GET /api/avatar]', err)

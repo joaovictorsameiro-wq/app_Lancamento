@@ -34,7 +34,7 @@ function ComparativoBar({ data }: { data: { name: string; Aluno: number; Lead: n
   )
 }
 
-function OrigemBar({ dados, cor }: { dados: OrigemRow[]; cor: string }) {
+function OrigemBar({ dados, cor, mostrarValor = true }: { dados: OrigemRow[]; cor: string; mostrarValor?: boolean }) {
   const top = dados.slice(0, 8)
   const max = Math.max(...top.map(d => d.compradores), 1)
   return (
@@ -43,7 +43,7 @@ function OrigemBar({ dados, cor }: { dados: OrigemRow[]; cor: string }) {
         <div key={i} className="space-y-0.5">
           <div className="flex items-center justify-between text-xs">
             <span className="text-gray-300 truncate max-w-[70%]" title={d.valor}>{d.valor}</span>
-            <span className="text-gray-400 tabular-nums">{d.compradores} · {fmt_currency(d.faturamento ?? 0)}</span>
+            <span className="text-gray-400 tabular-nums">{d.compradores}{mostrarValor ? ` · ${fmt_currency(d.faturamento ?? 0)}` : ''}</span>
           </div>
           <div className="h-1.5 w-full rounded-full bg-gray-800 overflow-hidden">
             <div className="h-full rounded-full" style={{ width: `${(d.compradores / max) * 100}%`, background: cor }} />
@@ -127,7 +127,17 @@ export default function PerfilPage() {
   const [lancamentoAluno, setLancamentoAluno] = useState('')  // filtro pesquisa_alunos ('' = todos)
   const [lancamentoAvatar, setLancamentoAvatar] = useState('') // filtro avatar ('' = todos)
   const [lancamentoOrigem, setLancamentoOrigem] = useState('') // filtro origem de compradores
-  const [origem, setOrigem] = useState<{ porAnuncio: OrigemRow[]; porCampanha: OrigemRow[]; porPlataforma: OrigemRow[] } | null>(null)
+  const [origem, setOrigem] = useState<{ porAnuncio: OrigemRow[]; porCampanha: OrigemRow[]; porPlataforma: OrigemRow[]; porMidia: OrigemRow[]; porTermo: OrigemRow[] } | null>(null)
+  const [avatarCompradores, setAvatarCompradores] = useState<{
+    total: number
+    sexo: { sexo: string; count: number }[]
+    faixa_etaria: { faixa: string; count: number }[]
+    renda: { renda: string; count: number }[]
+    formacao: { formacao: string; count: number }[]
+    experiencia: { experiencia: string; count: number }[]
+    mais_atrativo: { mais_atrativo: string; count: number }[]
+    respostasAbertas: { pergunta_ao_claudio: string | null; desejos_desafios: string | null }[]
+  } | null>(null)
 
   useEffect(() => {
     setLoading(true)
@@ -141,10 +151,13 @@ export default function PerfilPage() {
   }, [lancamentoAluno, lancamentoAvatar])
 
   useEffect(() => {
-    if (!lancamentoOrigem) { setOrigem(null); return }
+    if (!lancamentoOrigem) { setOrigem(null); setAvatarCompradores(null); return }
     fetch(`/api/compradores?id=${lancamentoOrigem}&view=origem`)
       .then(r => r.json())
       .then(setOrigem)
+    fetch(`/api/avatar?id=${lancamentoOrigem}&view=compradores`)
+      .then(r => r.json())
+      .then(setAvatarCompradores)
   }, [lancamentoOrigem])
 
   if (loading && !data) {
@@ -257,7 +270,7 @@ export default function PerfilPage() {
       {/* Origem dos Compradores */}
       <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-5 space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-3">
-          <SectionTitle icon={Target} title="Origem dos Compradores" sub="De qual anúncio, campanha e plataforma vieram — cruzando e-mail do comprador com a UTM do lead" />
+          <SectionTitle icon={Target} title="Origem dos Compradores" sub="As 5 UTMs — cruzando e-mail do comprador com a UTM do lead quando a Hotmart já apagou a da compra" />
           <LancamentoSelector value={lancamentoOrigem} onChange={setLancamentoOrigem} />
         </div>
         {!lancamentoOrigem && <p className="text-xs text-gray-600">Selecione um lançamento para ver a origem dos compradores.</p>}
@@ -265,19 +278,78 @@ export default function PerfilPage() {
         {origem && (
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             <div>
-              <p className="text-xs text-gray-400 mb-2">Por anúncio</p>
+              <p className="text-xs text-gray-400 mb-2">utm_content (anúncio)</p>
               <OrigemBar dados={origem.porAnuncio} cor="#10b981" />
             </div>
             <div>
-              <p className="text-xs text-gray-400 mb-2">Por campanha</p>
+              <p className="text-xs text-gray-400 mb-2">utm_campaign (campanha)</p>
               <OrigemBar dados={origem.porCampanha} cor="#6366f1" />
             </div>
             <div>
-              <p className="text-xs text-gray-400 mb-2">Por plataforma</p>
+              <p className="text-xs text-gray-400 mb-2">utm_source (plataforma)</p>
               <OrigemBar dados={origem.porPlataforma} cor="#f59e0b" />
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 mb-2">utm_medium</p>
+              <OrigemBar dados={origem.porMidia} cor="#ec4899" />
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 mb-2">utm_term (conjunto)</p>
+              <OrigemBar dados={origem.porTermo} cor="#14b8a6" />
             </div>
           </div>
         )}
+      </div>
+
+      {/* Como pensa o comprador (avatar só de quem comprou) */}
+      <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-5 space-y-4">
+        <SectionTitle icon={Users} title="Como Pensa o Comprador" sub={`Respostas do avatar (pré-venda) só de quem virou comprador — mesmo lançamento selecionado acima${avatarCompradores ? ` · ${avatarCompradores.total} respostas` : ''}`} />
+        {!lancamentoOrigem && <p className="text-xs text-gray-600">Selecione um lançamento acima.</p>}
+        {lancamentoOrigem && !avatarCompradores && <p className="text-xs text-gray-600">Carregando...</p>}
+        {avatarCompradores && avatarCompradores.total === 0 && (
+          <p className="text-xs text-gray-600">Nenhum comprador desse lançamento respondeu a pesquisa de avatar.</p>
+        )}
+        {avatarCompradores && avatarCompradores.total > 0 && (<>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div>
+              <p className="text-xs text-gray-400 mb-2">Faixa etária</p>
+              <OrigemBar dados={avatarCompradores.faixa_etaria.map(r => ({ valor: r.faixa, compradores: r.count, faturamento: 0 }))} cor="#10b981" mostrarValor={false} />
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 mb-2">Sexo</p>
+              <OrigemBar dados={avatarCompradores.sexo.map(r => ({ valor: r.sexo, compradores: r.count, faturamento: 0 }))} cor="#6366f1" mostrarValor={false} />
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 mb-2">Renda familiar</p>
+              <OrigemBar dados={avatarCompradores.renda.map(r => ({ valor: r.renda, compradores: r.count, faturamento: 0 }))} cor="#f59e0b" mostrarValor={false} />
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 mb-2">Formação</p>
+              <OrigemBar dados={avatarCompradores.formacao.map(r => ({ valor: r.formacao, compradores: r.count, faturamento: 0 }))} cor="#ec4899" mostrarValor={false} />
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 mb-2">Experiência profissional</p>
+              <OrigemBar dados={avatarCompradores.experiencia.map(r => ({ valor: r.experiencia, compradores: r.count, faturamento: 0 }))} cor="#14b8a6" mostrarValor={false} />
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 mb-2">O que mais atrai no curso</p>
+              <OrigemBar dados={avatarCompradores.mais_atrativo.map(r => ({ valor: r.mais_atrativo, compradores: r.count, faturamento: 0 }))} cor="#8b5cf6" mostrarValor={false} />
+            </div>
+          </div>
+          {avatarCompradores.respostasAbertas.length > 0 && (
+            <div>
+              <p className="text-xs text-gray-400 mb-2">O que dizem (respostas abertas)</p>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {avatarCompradores.respostasAbertas.map((r, i) => (
+                  <div key={i} className="rounded-lg bg-gray-950/50 border border-gray-800 p-2.5 text-xs text-gray-400 space-y-1">
+                    {r.desejos_desafios && <p><span className="text-gray-600">Desejo/desafio: </span>{r.desejos_desafios}</p>}
+                    {r.pergunta_ao_claudio && <p><span className="text-gray-600">Pergunta: </span>{r.pergunta_ao_claudio}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>)}
       </div>
 
       {/* Comparativo Aluno x Lead */}
