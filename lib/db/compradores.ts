@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '../prisma'
 
 export async function getCompradoresByLancamento(idLancamento: string) {
@@ -48,6 +49,40 @@ export async function getFaturamentoBruto(idLancamento: string) {
       AND status_pagamento = 'aprovado'
   `
   return result[0]?.total ?? 0
+}
+
+// Origem dos compradores: cruza compradores x leads (por e-mail + lançamento) porque a Hotmart
+// costuma apagar a UTM da própria compra depois — leads guarda a UTM original de captação.
+export type OrigemRow = {
+  valor: string
+  compradores: number
+  faturamento: number
+}
+
+async function origemPorCampo(idLancamento: string, campo: 'utm_content' | 'utm_campaign' | 'utm_source'): Promise<OrigemRow[]> {
+  const coluna = Prisma.raw(campo)
+  return prisma.$queryRaw<OrigemRow[]>`
+    SELECT
+      COALESCE(NULLIF(c.${coluna}, ''), NULLIF(l.${coluna}, ''), 'Não identificado') AS valor,
+      COUNT(*)::int AS compradores,
+      SUM(c.valor_liquido)::float AS faturamento
+    FROM compradores c
+    LEFT JOIN leads l ON lower(l.email) = lower(c.email) AND l.id_lancamento = c.id_lancamento
+    WHERE c.id_lancamento = ${idLancamento}
+      AND c.status_pagamento = 'aprovado'
+      AND c.tipo_venda = 'principal'
+    GROUP BY valor
+    ORDER BY compradores DESC
+  `
+}
+
+export async function getOrigemCompradores(idLancamento: string) {
+  const [porAnuncio, porCampanha, porPlataforma] = await Promise.all([
+    origemPorCampo(idLancamento, 'utm_content'),
+    origemPorCampo(idLancamento, 'utm_campaign'),
+    origemPorCampo(idLancamento, 'utm_source'),
+  ])
+  return { porAnuncio, porCampanha, porPlataforma }
 }
 
 export type StatusCount = {

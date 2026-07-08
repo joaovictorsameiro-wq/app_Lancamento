@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import {
   getStatusPagamento,
   getRecuperacaoPipeline,
+  getOrigemCompradores,
 } from '../../../lib/db/compradores'
 
 export async function GET(req: NextRequest) {
@@ -12,9 +13,10 @@ export async function GET(req: NextRequest) {
   if (!id) return NextResponse.json({ error: 'id obrigatório' }, { status: 400 })
 
   try {
-    const data = view === 'recuperacao'
-      ? await getRecuperacaoPipeline(id)
-      : await getStatusPagamento(id)
+    let data
+    if (view === 'recuperacao') data = await getRecuperacaoPipeline(id)
+    else if (view === 'origem') data = await getOrigemCompradores(id)
+    else data = await getStatusPagamento(id)
     return NextResponse.json(data)
   } catch (err) {
     console.error('[GET /api/compradores]', err)

@@ -1,13 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Users, BookOpen, DollarSign, GraduationCap, BarChart2, Search, Loader2, ArrowLeftRight } from 'lucide-react'
+import { Users, BookOpen, DollarSign, GraduationCap, BarChart2, Search, Loader2, ArrowLeftRight, Target } from 'lucide-react'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from 'recharts'
 import type { PesquisaResumo } from '../../../lib/db/pesquisa'
+import type { OrigemRow } from '../../../lib/db/compradores'
 import LancamentoSelector from '../../../components/lancamento-selector'
+import { fmt_currency } from '../../../lib/format'
 
 const RENDA_ORDEM = ['Ate R$3.000', 'R$3.001 a R$7.000', 'R$7.001 a R$10.000', 'R$10.001 a R$14.000', 'Acima de R$14.000']
 const FORMACAO_ORDEM = ['Administração', 'Contabilidade', 'Direito', 'Economia', 'Engenharia', 'Outras áreas']
@@ -29,6 +31,27 @@ function ComparativoBar({ data }: { data: { name: string; Aluno: number; Lead: n
         <Bar dataKey="Lead" fill="#6366f1" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
+  )
+}
+
+function OrigemBar({ dados, cor }: { dados: OrigemRow[]; cor: string }) {
+  const top = dados.slice(0, 8)
+  const max = Math.max(...top.map(d => d.compradores), 1)
+  return (
+    <div className="space-y-2">
+      {top.map((d, i) => (
+        <div key={i} className="space-y-0.5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-gray-300 truncate max-w-[70%]" title={d.valor}>{d.valor}</span>
+            <span className="text-gray-400 tabular-nums">{d.compradores} · {fmt_currency(d.faturamento ?? 0)}</span>
+          </div>
+          <div className="h-1.5 w-full rounded-full bg-gray-800 overflow-hidden">
+            <div className="h-full rounded-full" style={{ width: `${(d.compradores / max) * 100}%`, background: cor }} />
+          </div>
+        </div>
+      ))}
+      {top.length === 0 && <p className="text-xs text-gray-600">Sem dados</p>}
+    </div>
   )
 }
 
@@ -103,6 +126,8 @@ export default function PerfilPage() {
   const [loading, setLoading] = useState(true)
   const [lancamentoAluno, setLancamentoAluno] = useState('')  // filtro pesquisa_alunos ('' = todos)
   const [lancamentoAvatar, setLancamentoAvatar] = useState('') // filtro avatar ('' = todos)
+  const [lancamentoOrigem, setLancamentoOrigem] = useState('') // filtro origem de compradores
+  const [origem, setOrigem] = useState<{ porAnuncio: OrigemRow[]; porCampanha: OrigemRow[]; porPlataforma: OrigemRow[] } | null>(null)
 
   useEffect(() => {
     setLoading(true)
@@ -114,6 +139,13 @@ export default function PerfilPage() {
       .then(setData)
       .finally(() => setLoading(false))
   }, [lancamentoAluno, lancamentoAvatar])
+
+  useEffect(() => {
+    if (!lancamentoOrigem) { setOrigem(null); return }
+    fetch(`/api/compradores?id=${lancamentoOrigem}&view=origem`)
+      .then(r => r.json())
+      .then(setOrigem)
+  }, [lancamentoOrigem])
 
   if (loading && !data) {
     return (
@@ -220,6 +252,32 @@ export default function PerfilPage() {
         <StatCard label="Masculino"            value={pct(masculino, total)} sub={`${masculino} alunos`} />
         <StatCard label="Feminino"             value={pct(feminino,  total)} sub={`${feminino} alunos`} />
         <StatCard label="Pós-graduados ou +"   value={pct((data.academico.find(a => a.nivel_academico === 'Pós-graduação / MBA')?.total ?? 0) + (data.academico.find(a => a.nivel_academico === 'Mestrado')?.total ?? 0) + (data.academico.find(a => a.nivel_academico === 'Doutorado / Pós-doc')?.total ?? 0), total)} sub="MBA, Mestrado, Doutorado" />
+      </div>
+
+      {/* Origem dos Compradores */}
+      <div className="rounded-xl border border-gray-800 bg-gray-900/60 p-5 space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <SectionTitle icon={Target} title="Origem dos Compradores" sub="De qual anúncio, campanha e plataforma vieram — cruzando e-mail do comprador com a UTM do lead" />
+          <LancamentoSelector value={lancamentoOrigem} onChange={setLancamentoOrigem} />
+        </div>
+        {!lancamentoOrigem && <p className="text-xs text-gray-600">Selecione um lançamento para ver a origem dos compradores.</p>}
+        {lancamentoOrigem && !origem && <p className="text-xs text-gray-600">Carregando...</p>}
+        {origem && (
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+            <div>
+              <p className="text-xs text-gray-400 mb-2">Por anúncio</p>
+              <OrigemBar dados={origem.porAnuncio} cor="#10b981" />
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 mb-2">Por campanha</p>
+              <OrigemBar dados={origem.porCampanha} cor="#6366f1" />
+            </div>
+            <div>
+              <p className="text-xs text-gray-400 mb-2">Por plataforma</p>
+              <OrigemBar dados={origem.porPlataforma} cor="#f59e0b" />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Comparativo Aluno x Lead */}
