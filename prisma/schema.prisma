@@ -94,6 +94,22 @@ model trafego_meta {
   ctr              Float?
   total_gasto      Float?
   leads            Int?
+  thruplays            Int?
+  custo_thruplay       Float?
+  video_plays_3s       Int?
+  custo_video_play_3s  Float?
+  video_p25            Int?
+  video_p50            Int?
+  video_p75            Int?
+  video_p95            Int?
+  video_p100           Int?
+  video_plays          Int?
+  custo_vv25           Float?
+  custo_vv50           Float?
+  custo_vv75           Float?
+  custo_vv95           Float?
+  hook_rate            Float?
+  retencao_25_75       Float?
 }
 
 model leads {

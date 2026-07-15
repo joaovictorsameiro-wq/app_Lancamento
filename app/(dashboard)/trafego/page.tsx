@@ -63,6 +63,26 @@ type QualificacaoAnuncio = {
   pct_qualificado: number
 }
 
+type CorredorPolonesRow = {
+  campanha: string
+  total_gasto: number
+  thruplays: number
+  custo_thruplay: number | null
+  video_plays_3s: number
+  video_p25: number
+  video_p50: number
+  video_p75: number
+  video_p95: number
+  video_p100: number
+  video_plays: number
+  custo_vv25: number | null
+  custo_vv50: number | null
+  custo_vv75: number | null
+  custo_vv95: number | null
+  hook_rate: number | null
+  retencao_25_75: number | null
+}
+
 function hojeISO() {
   return new Date().toISOString().slice(0, 10)
 }
@@ -106,6 +126,9 @@ export default function TrafegoPage() {
   const [filtroCampanha, setFiltro] = useState<string>('todos')
   const [dataInicio, setDataInicio] = useState('')
   const [dataFim, setDataFim]       = useState('')
+  const [aba, setAba] = useState<'captacao' | 'corredor'>('captacao')
+  const [corredor, setCorredor] = useState<CorredorPolonesRow[]>([])
+  const [carregandoCorredor, setCarregandoCorredor] = useState(false)
 
   const fetchAll = useCallback(async () => {
     if (!lancamentoId) return
@@ -135,6 +158,15 @@ export default function TrafegoPage() {
   }, [lancamentoId, dataInicio, dataFim])
 
   useEffect(() => { fetchAll() }, [fetchAll])
+
+  useEffect(() => {
+    if (aba !== 'corredor' || !lancamentoId) return
+    setCarregandoCorredor(true)
+    fetch(`/api/trafego?id=${lancamentoId}&view=corredor-polones`)
+      .then(r => r.json())
+      .then(d => setCorredor(Array.isArray(d) ? d : []))
+      .finally(() => setCarregandoCorredor(false))
+  }, [aba, lancamentoId])
 
   const qualifPorAnuncioMap = new Map(qualifPorAnuncio.map(q => [q.anuncio, q]))
 
@@ -197,13 +229,30 @@ export default function TrafegoPage() {
         </div>
       </div>
 
+      {/* Abas */}
+      <div className="flex gap-1.5 border-b border-gray-800 pb-px">
+        {(['captacao', 'corredor'] as const).map(a => (
+          <button
+            key={a}
+            onClick={() => setAba(a)}
+            className={`text-xs px-3 py-2 border-b-2 transition-colors ${
+              aba === a
+                ? 'border-emerald-500 text-emerald-400'
+                : 'border-transparent text-gray-500 hover:text-gray-300'
+            }`}
+          >
+            {a === 'captacao' ? 'Captação' : 'Corredor Polonês'}
+          </button>
+        ))}
+      </div>
+
       {!lancamentoId && (
         <div className="flex h-40 items-center justify-center text-gray-500 text-sm">
           Selecione um lançamento para ver os dados de tráfego
         </div>
       )}
 
-      {lancamentoId && (<>
+      {lancamentoId && aba === 'captacao' && (<>
 
       {/* CAPTAÇÃO — seção principal */}
       <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-4 space-y-4">
@@ -516,6 +565,59 @@ export default function TrafegoPage() {
       </div>
 
       </>)}
+
+      {lancamentoId && aba === 'corredor' && (
+        <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+          <div className="mb-4">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Corredor Polonês — Teste de Vídeo por Campanha</p>
+            <p className="text-[10px] text-gray-600 mt-0.5">Hook Rate = reproduções 3s ÷ impressões · Retenção 25→75% = quem viu 75% dentre os que viram 25%</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-gray-800">
+                  <th className="pb-2 text-left text-gray-400 font-medium">Campanha</th>
+                  <th className="pb-2 text-right text-gray-400 font-medium">Gasto</th>
+                  <th className="pb-2 text-right text-gray-400 font-medium">ThruPlays</th>
+                  <th className="pb-2 text-right text-gray-400 font-medium">Custo/ThruPlay</th>
+                  <th className="pb-2 text-right text-gray-400 font-medium">VV 25%</th>
+                  <th className="pb-2 text-right text-gray-400 font-medium">VV 50%</th>
+                  <th className="pb-2 text-right text-gray-400 font-medium">VV 75%</th>
+                  <th className="pb-2 text-right text-gray-400 font-medium">VV 95%</th>
+                  <th className="pb-2 text-right text-gray-400 font-medium">Hook Rate</th>
+                  <th className="pb-2 text-right text-gray-400 font-medium">Retenção 25→75%</th>
+                </tr>
+              </thead>
+              <tbody>
+                {carregandoCorredor && (
+                  <tr><td colSpan={10} className="py-8 text-center text-gray-500">Carregando...</td></tr>
+                )}
+                {!carregandoCorredor && corredor.length === 0 && (
+                  <tr><td colSpan={10} className="py-8 text-center text-gray-500">
+                    Nenhum dado de vídeo encontrado para esse lançamento — verifique se a extração no n8n já traz os campos de vídeo.
+                  </td></tr>
+                )}
+                {corredor.map((c, i) => (
+                  <tr key={i} className="border-b border-gray-800/60 hover:bg-gray-800/20">
+                    <td className="py-2.5 pr-4">
+                      <span className="text-gray-200 max-w-xs truncate block cursor-help" title={c.campanha}>{c.campanha}</span>
+                    </td>
+                    <td className="py-2.5 text-right text-gray-200 tabular-nums">{fmt_currency(c.total_gasto)}</td>
+                    <td className="py-2.5 text-right text-emerald-400 font-medium tabular-nums">{c.thruplays?.toLocaleString('pt-BR') ?? '—'}</td>
+                    <td className="py-2.5 text-right text-blue-400 tabular-nums">{c.custo_thruplay != null ? fmt_currency(c.custo_thruplay) : '—'}</td>
+                    <td className="py-2.5 text-right text-gray-400 tabular-nums">{c.video_p25?.toLocaleString('pt-BR') ?? '—'}</td>
+                    <td className="py-2.5 text-right text-gray-400 tabular-nums">{c.video_p50?.toLocaleString('pt-BR') ?? '—'}</td>
+                    <td className="py-2.5 text-right text-gray-400 tabular-nums">{c.video_p75?.toLocaleString('pt-BR') ?? '—'}</td>
+                    <td className="py-2.5 text-right text-gray-400 tabular-nums">{c.video_p95?.toLocaleString('pt-BR') ?? '—'}</td>
+                    <td className="py-2.5 text-right text-yellow-400 tabular-nums">{c.hook_rate != null ? `${(c.hook_rate * 100).toFixed(1)}%` : '—'}</td>
+                    <td className="py-2.5 text-right text-pink-400 tabular-nums">{c.retencao_25_75 != null ? `${(c.retencao_25_75 * 100).toFixed(1)}%` : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

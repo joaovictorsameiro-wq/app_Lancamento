@@ -98,6 +98,55 @@ export type AnuncioScore = {
   cpl: number
 }
 
+// Corredor Polonês — teste de retenção de vídeo por campanha (só linhas com dado de vídeo).
+export async function getCorredorPolones(idLancamento: string) {
+  return prisma.$queryRaw<CorredorPolonesRow[]>`
+    SELECT
+      campanha,
+      SUM(total_gasto)::float AS total_gasto,
+      SUM(thruplays)::int AS thruplays,
+      CASE WHEN SUM(thruplays) > 0 THEN SUM(total_gasto) / SUM(thruplays) ELSE NULL END AS custo_thruplay,
+      SUM(video_plays_3s)::int AS video_plays_3s,
+      SUM(video_p25)::int AS video_p25,
+      SUM(video_p50)::int AS video_p50,
+      SUM(video_p75)::int AS video_p75,
+      SUM(video_p95)::int AS video_p95,
+      SUM(video_p100)::int AS video_p100,
+      SUM(video_plays)::int AS video_plays,
+      CASE WHEN SUM(video_p25) > 0 THEN SUM(total_gasto) / SUM(video_p25) ELSE NULL END AS custo_vv25,
+      CASE WHEN SUM(video_p50) > 0 THEN SUM(total_gasto) / SUM(video_p50) ELSE NULL END AS custo_vv50,
+      CASE WHEN SUM(video_p75) > 0 THEN SUM(total_gasto) / SUM(video_p75) ELSE NULL END AS custo_vv75,
+      CASE WHEN SUM(video_p95) > 0 THEN SUM(total_gasto) / SUM(video_p95) ELSE NULL END AS custo_vv95,
+      CASE WHEN SUM(impressoes) > 0 THEN SUM(video_plays_3s)::float / SUM(impressoes) ELSE NULL END AS hook_rate,
+      CASE WHEN SUM(video_p25) > 0 THEN SUM(video_p75)::float / SUM(video_p25) ELSE NULL END AS retencao_25_75
+    FROM trafego_meta
+    WHERE id_lancamento = ${idLancamento}
+      AND (thruplays IS NOT NULL OR video_plays_3s IS NOT NULL)
+    GROUP BY campanha
+    ORDER BY total_gasto DESC
+  `
+}
+
+export type CorredorPolonesRow = {
+  campanha: string
+  total_gasto: number
+  thruplays: number
+  custo_thruplay: number | null
+  video_plays_3s: number
+  video_p25: number
+  video_p50: number
+  video_p75: number
+  video_p95: number
+  video_p100: number
+  video_plays: number
+  custo_vv25: number | null
+  custo_vv50: number | null
+  custo_vv75: number | null
+  custo_vv95: number | null
+  hook_rate: number | null
+  retencao_25_75: number | null
+}
+
 export type TrafegoDiario = {
   dia: string
   gasto: number

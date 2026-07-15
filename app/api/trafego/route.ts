@@ -6,6 +6,7 @@ import {
   getTrafegoDiario,
   getTrafegoBreakdown,
   getTrafegoCampanhas,
+  getCorredorPolones,
 } from '../../../lib/db/trafego'
 import { getQualificacaoPorTipo, getQualificacaoPorAnuncio } from '../../../lib/db/avatar'
 
@@ -26,6 +27,7 @@ export async function GET(req: NextRequest) {
     else if (view === 'campanhas') data = await getTrafegoCampanhas(id)
     else if (view === 'agregado') data = await getTrafegoAgregado(id)
     else if (view === 'anuncios') data = await getTrafegoAnuncios(id, dataInicio, dataFim)
+    else if (view === 'corredor-polones') data = await getCorredorPolones(id)
     else if (view === 'diario') data = await getTrafegoDiario(id)
     else data = await getTrafegoByLancamento(id)
 
