@@ -127,6 +127,36 @@ export async function getCorredorPolones(idLancamento: string) {
   `
 }
 
+// Evolução diária do Hook Rate e Retenção 25→75%, só das 5 campanhas com mais gasto
+// (evita poluir o gráfico quando há muitas campanhas de teste).
+export async function getCorredorPolonesDiario(idLancamento: string) {
+  return prisma.$queryRaw<CorredorPolonesDiaRow[]>`
+    WITH top_campanhas AS (
+      SELECT campanha FROM trafego_meta
+      WHERE id_lancamento = ${idLancamento} AND (thruplays IS NOT NULL OR video_plays_3s IS NOT NULL)
+      GROUP BY campanha ORDER BY SUM(total_gasto) DESC LIMIT 5
+    )
+    SELECT
+      data::date AS dia,
+      campanha,
+      CASE WHEN SUM(impressoes) > 0 THEN SUM(video_plays_3s)::float / SUM(impressoes) ELSE NULL END AS hook_rate,
+      CASE WHEN SUM(video_p25) > 0 THEN SUM(video_p75)::float / SUM(video_p25) ELSE NULL END AS retencao_25_75
+    FROM trafego_meta
+    WHERE id_lancamento = ${idLancamento}
+      AND campanha IN (SELECT campanha FROM top_campanhas)
+      AND (thruplays IS NOT NULL OR video_plays_3s IS NOT NULL)
+    GROUP BY dia, campanha
+    ORDER BY dia ASC
+  `
+}
+
+export type CorredorPolonesDiaRow = {
+  dia: string
+  campanha: string
+  hook_rate: number | null
+  retencao_25_75: number | null
+}
+
 export type CorredorPolonesRow = {
   campanha: string
   total_gasto: number

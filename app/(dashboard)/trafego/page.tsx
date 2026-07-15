@@ -63,6 +63,13 @@ type QualificacaoAnuncio = {
   pct_qualificado: number
 }
 
+type CorredorPolonesDiaRow = {
+  dia: string
+  campanha: string
+  hook_rate: number | null
+  retencao_25_75: number | null
+}
+
 type CorredorPolonesRow = {
   campanha: string
   total_gasto: number
@@ -128,7 +135,10 @@ export default function TrafegoPage() {
   const [dataFim, setDataFim]       = useState('')
   const [aba, setAba] = useState<'captacao' | 'corredor'>('captacao')
   const [corredor, setCorredor] = useState<CorredorPolonesRow[]>([])
+  const [corredorDiario, setCorredorDiario] = useState<CorredorPolonesDiaRow[]>([])
   const [carregandoCorredor, setCarregandoCorredor] = useState(false)
+  const [ordenarPor, setOrdenarPor] = useState<keyof CorredorPolonesRow>('total_gasto')
+  const [ordemAsc, setOrdemAsc] = useState(false)
 
   const fetchAll = useCallback(async () => {
     if (!lancamentoId) return
@@ -162,11 +172,65 @@ export default function TrafegoPage() {
   useEffect(() => {
     if (aba !== 'corredor' || !lancamentoId) return
     setCarregandoCorredor(true)
-    fetch(`/api/trafego?id=${lancamentoId}&view=corredor-polones`)
-      .then(r => r.json())
-      .then(d => setCorredor(Array.isArray(d) ? d : []))
+    Promise.all([
+      fetch(`/api/trafego?id=${lancamentoId}&view=corredor-polones`).then(r => r.json()),
+      fetch(`/api/trafego?id=${lancamentoId}&view=corredor-polones-diario`).then(r => r.json()),
+    ])
+      .then(([c, d]) => {
+        setCorredor(Array.isArray(c) ? c : [])
+        setCorredorDiario(Array.isArray(d) ? d : [])
+      })
       .finally(() => setCarregandoCorredor(false))
   }, [aba, lancamentoId])
+
+  function alternarOrdenacao(campo: keyof CorredorPolonesRow) {
+    if (ordenarPor === campo) setOrdemAsc(v => !v)
+    else { setOrdenarPor(campo); setOrdemAsc(false) }
+  }
+
+  const corredorOrdenado = [...corredor].sort((a, b) => {
+    const va = a[ordenarPor] ?? -Infinity
+    const vb = b[ordenarPor] ?? -Infinity
+    if (typeof va === 'string' || typeof vb === 'string') return ordemAsc ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va))
+    return ordemAsc ? (va as number) - (vb as number) : (vb as number) - (va as number)
+  })
+  const melhorCampanha = corredor.length > 0
+    ? [...corredor].sort((a, b) => (b.retencao_25_75 ?? -1) - (a.retencao_25_75 ?? -1))[0].campanha
+    : null
+
+  function corHookRate(v: number | null) {
+    if (v == null) return 'text-gray-600'
+    if (v >= 0.30) return 'text-emerald-400'
+    if (v >= 0.20) return 'text-yellow-400'
+    return 'text-red-400'
+  }
+  function corRetencao(v: number | null) {
+    if (v == null) return 'text-gray-600'
+    if (v >= 0.20) return 'text-emerald-400'
+    if (v >= 0.10) return 'text-yellow-400'
+    return 'text-red-400'
+  }
+
+  // Monta série diária: uma coluna por campanha, pra plotar várias linhas no mesmo gráfico
+  const campanhasDiario = Array.from(new Set(corredorDiario.map(d => d.campanha)))
+  const diasUnicos = Array.from(new Set(corredorDiario.map(d => d.dia))).sort()
+  const chartHookRate = diasUnicos.map(dia => {
+    const row: Record<string, string | number> = { dia: dia.slice(5) }
+    for (const camp of campanhasDiario) {
+      const d = corredorDiario.find(x => x.dia === dia && x.campanha === camp)
+      if (d?.hook_rate != null) row[camp] = Number((d.hook_rate * 100).toFixed(1))
+    }
+    return row
+  })
+  const chartRetencao = diasUnicos.map(dia => {
+    const row: Record<string, string | number> = { dia: dia.slice(5) }
+    for (const camp of campanhasDiario) {
+      const d = corredorDiario.find(x => x.dia === dia && x.campanha === camp)
+      if (d?.retencao_25_75 != null) row[camp] = Number((d.retencao_25_75 * 100).toFixed(1))
+    }
+    return row
+  })
+  const CORES_CAMPANHA = ['#10b981', '#6366f1', '#f59e0b', '#ec4899', '#14b8a6']
 
   const qualifPorAnuncioMap = new Map(qualifPorAnuncio.map(q => [q.anuncio, q]))
 
@@ -566,58 +630,112 @@ export default function TrafegoPage() {
 
       </>)}
 
-      {lancamentoId && aba === 'corredor' && (
-        <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
-          <div className="mb-4">
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Corredor Polonês — Teste de Vídeo por Campanha</p>
-            <p className="text-[10px] text-gray-600 mt-0.5">Hook Rate = reproduções 3s ÷ impressões · Retenção 25→75% = quem viu 75% dentre os que viram 25%</p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-gray-800">
-                  <th className="pb-2 text-left text-gray-400 font-medium">Campanha</th>
-                  <th className="pb-2 text-right text-gray-400 font-medium">Gasto</th>
-                  <th className="pb-2 text-right text-gray-400 font-medium">ThruPlays</th>
-                  <th className="pb-2 text-right text-gray-400 font-medium">Custo/ThruPlay</th>
-                  <th className="pb-2 text-right text-gray-400 font-medium">VV 25%</th>
-                  <th className="pb-2 text-right text-gray-400 font-medium">VV 50%</th>
-                  <th className="pb-2 text-right text-gray-400 font-medium">VV 75%</th>
-                  <th className="pb-2 text-right text-gray-400 font-medium">VV 95%</th>
-                  <th className="pb-2 text-right text-gray-400 font-medium">Hook Rate</th>
-                  <th className="pb-2 text-right text-gray-400 font-medium">Retenção 25→75%</th>
-                </tr>
-              </thead>
-              <tbody>
-                {carregandoCorredor && (
-                  <tr><td colSpan={10} className="py-8 text-center text-gray-500">Carregando...</td></tr>
-                )}
-                {!carregandoCorredor && corredor.length === 0 && (
-                  <tr><td colSpan={10} className="py-8 text-center text-gray-500">
-                    Nenhum dado de vídeo encontrado para esse lançamento — verifique se a extração no n8n já traz os campos de vídeo.
-                  </td></tr>
-                )}
-                {corredor.map((c, i) => (
-                  <tr key={i} className="border-b border-gray-800/60 hover:bg-gray-800/20">
-                    <td className="py-2.5 pr-4">
-                      <span className="text-gray-200 max-w-xs truncate block cursor-help" title={c.campanha}>{c.campanha}</span>
-                    </td>
-                    <td className="py-2.5 text-right text-gray-200 tabular-nums">{fmt_currency(c.total_gasto)}</td>
-                    <td className="py-2.5 text-right text-emerald-400 font-medium tabular-nums">{c.thruplays?.toLocaleString('pt-BR') ?? '—'}</td>
-                    <td className="py-2.5 text-right text-blue-400 tabular-nums">{c.custo_thruplay != null ? fmt_currency(c.custo_thruplay) : '—'}</td>
-                    <td className="py-2.5 text-right text-gray-400 tabular-nums">{c.video_p25?.toLocaleString('pt-BR') ?? '—'}</td>
-                    <td className="py-2.5 text-right text-gray-400 tabular-nums">{c.video_p50?.toLocaleString('pt-BR') ?? '—'}</td>
-                    <td className="py-2.5 text-right text-gray-400 tabular-nums">{c.video_p75?.toLocaleString('pt-BR') ?? '—'}</td>
-                    <td className="py-2.5 text-right text-gray-400 tabular-nums">{c.video_p95?.toLocaleString('pt-BR') ?? '—'}</td>
-                    <td className="py-2.5 text-right text-yellow-400 tabular-nums">{c.hook_rate != null ? `${(c.hook_rate * 100).toFixed(1)}%` : '—'}</td>
-                    <td className="py-2.5 text-right text-pink-400 tabular-nums">{c.retencao_25_75 != null ? `${(c.retencao_25_75 * 100).toFixed(1)}%` : '—'}</td>
-                  </tr>
+      {lancamentoId && aba === 'corredor' && (<>
+
+      {/* Evolução diária */}
+      {corredorDiario.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Hook Rate por dia</p>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={chartHookRate} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                <XAxis dataKey="dia" tick={{ fontSize: 10, fill: '#6b7280' }} />
+                <YAxis tick={{ fontSize: 10, fill: '#6b7280' }} tickFormatter={v => `${v}%`} />
+                <Tooltip
+                  contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 8 }}
+                  labelStyle={{ color: '#9ca3af', fontSize: 11 }}
+                  formatter={(val: number) => `${val}%`}
+                />
+                <Legend wrapperStyle={{ fontSize: 9 }} />
+                {campanhasDiario.map((camp, i) => (
+                  <Line key={camp} type="monotone" dataKey={camp} name={camp.slice(0, 20)}
+                    stroke={CORES_CAMPANHA[i % CORES_CAMPANHA.length]} strokeWidth={2} dot={false} connectNulls />
                 ))}
-              </tbody>
-            </table>
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Retenção 25→75% por dia</p>
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={chartRetencao} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                <XAxis dataKey="dia" tick={{ fontSize: 10, fill: '#6b7280' }} />
+                <YAxis tick={{ fontSize: 10, fill: '#6b7280' }} tickFormatter={v => `${v}%`} />
+                <Tooltip
+                  contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 8 }}
+                  labelStyle={{ color: '#9ca3af', fontSize: 11 }}
+                  formatter={(val: number) => `${val}%`}
+                />
+                <Legend wrapperStyle={{ fontSize: 9 }} />
+                {campanhasDiario.map((camp, i) => (
+                  <Line key={camp} type="monotone" dataKey={camp} name={camp.slice(0, 20)}
+                    stroke={CORES_CAMPANHA[i % CORES_CAMPANHA.length]} strokeWidth={2} dot={false} connectNulls />
+                ))}
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
       )}
+
+      <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+        <div className="mb-4">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Corredor Polonês — Teste de Vídeo por Campanha</p>
+          <p className="text-[10px] text-gray-600 mt-0.5">
+            Hook Rate = reproduções 3s ÷ impressões (🟢 ≥30% · 🟡 20-30% · 🔴 &lt;20%) · Retenção 25→75% = quem viu 75% dentre os que viram 25% (🟢 ≥20% · 🟡 10-20% · 🔴 &lt;10%)
+          </p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b border-gray-800">
+                <th className="pb-2 text-left text-gray-400 font-medium">Campanha</th>
+                {([
+                  ['total_gasto', 'Gasto'], ['thruplays', 'ThruPlays'], ['custo_thruplay', 'Custo/ThruPlay'],
+                  ['video_p25', 'VV 25%'], ['video_p50', 'VV 50%'], ['video_p75', 'VV 75%'], ['video_p95', 'VV 95%'],
+                  ['hook_rate', 'Hook Rate'], ['retencao_25_75', 'Retenção 25→75%'],
+                ] as [keyof CorredorPolonesRow, string][]).map(([campo, label]) => (
+                  <th key={campo} className="pb-2 text-right text-gray-400 font-medium cursor-pointer hover:text-gray-200 select-none"
+                    onClick={() => alternarOrdenacao(campo)}>
+                    {label}{ordenarPor === campo ? (ordemAsc ? ' ▲' : ' ▼') : ''}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {carregandoCorredor && (
+                <tr><td colSpan={10} className="py-8 text-center text-gray-500">Carregando...</td></tr>
+              )}
+              {!carregandoCorredor && corredor.length === 0 && (
+                <tr><td colSpan={10} className="py-8 text-center text-gray-500">
+                  Nenhum dado de vídeo encontrado para esse lançamento — verifique se a extração no n8n já traz os campos de vídeo.
+                </td></tr>
+              )}
+              {corredorOrdenado.map((c, i) => (
+                <tr key={i} className="border-b border-gray-800/60 hover:bg-gray-800/20">
+                  <td className="py-2.5 pr-4">
+                    <span className="text-gray-200 max-w-xs truncate flex items-center gap-1.5" title={c.campanha}>
+                      {c.campanha === melhorCampanha && <span title="Melhor retenção">🏆</span>}
+                      {c.campanha}
+                    </span>
+                  </td>
+                  <td className="py-2.5 text-right text-gray-200 tabular-nums">{fmt_currency(c.total_gasto)}</td>
+                  <td className="py-2.5 text-right text-emerald-400 font-medium tabular-nums">{c.thruplays?.toLocaleString('pt-BR') ?? '—'}</td>
+                  <td className="py-2.5 text-right text-blue-400 tabular-nums">{c.custo_thruplay != null ? fmt_currency(c.custo_thruplay) : '—'}</td>
+                  <td className="py-2.5 text-right text-gray-400 tabular-nums">{c.video_p25?.toLocaleString('pt-BR') ?? '—'}</td>
+                  <td className="py-2.5 text-right text-gray-400 tabular-nums">{c.video_p50?.toLocaleString('pt-BR') ?? '—'}</td>
+                  <td className="py-2.5 text-right text-gray-400 tabular-nums">{c.video_p75?.toLocaleString('pt-BR') ?? '—'}</td>
+                  <td className="py-2.5 text-right text-gray-400 tabular-nums">{c.video_p95?.toLocaleString('pt-BR') ?? '—'}</td>
+                  <td className={`py-2.5 text-right font-medium tabular-nums ${corHookRate(c.hook_rate)}`}>{c.hook_rate != null ? `${(c.hook_rate * 100).toFixed(1)}%` : '—'}</td>
+                  <td className={`py-2.5 text-right font-medium tabular-nums ${corRetencao(c.retencao_25_75)}`}>{c.retencao_25_75 != null ? `${(c.retencao_25_75 * 100).toFixed(1)}%` : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      </>)}
     </div>
   )
 }
