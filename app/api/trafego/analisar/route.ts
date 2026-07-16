@@ -45,7 +45,7 @@ Estruture sua resposta em:
 Seja direto, sem enrolação, focado em ação.`
 
     const response = await client.models.generateContent({
-      model: 'gemini-2.5-pro',
+      model: 'gemini-3-pro-preview',
       contents: prompt,
     })
 
