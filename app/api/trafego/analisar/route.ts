@@ -54,6 +54,7 @@ Seja direto, sem enrolação, focado em ação.`
     return NextResponse.json({ analise: texto })
   } catch (err) {
     console.error('[POST /api/trafego/analisar]', err)
-    return NextResponse.json({ error: 'Erro ao gerar análise' }, { status: 500 })
+    const detalhe = err instanceof Error ? err.message : String(err)
+    return NextResponse.json({ error: `Erro ao gerar análise: ${detalhe}` }, { status: 500 })
   }
 }
