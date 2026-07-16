@@ -752,7 +752,7 @@ export default function TrafegoPage() {
         <div className="mb-4">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Corredor Polonês — Teste de Vídeo por Campanha</p>
           <p className="text-[10px] text-gray-600 mt-0.5">
-            Hook Rate = reproduções 3s ÷ impressões (🟢 ≥30% · 🟡 20-30% · 🔴 &lt;20%) · Retenção 25→75% = quem viu 75% dentre os que viram 25% (🟢 ≥20% · 🟡 10-20% · 🔴 &lt;10%)
+            Hook Rate = reproduções 3s ÷ impressões (<span className="text-emerald-400">≥30%</span> · <span className="text-yellow-400">20-30%</span> · <span className="text-red-400">&lt;20%</span>) · Retenção 25→75% = quem viu 75% dentre os que viram 25% (<span className="text-emerald-400">≥20%</span> · <span className="text-yellow-400">10-20%</span> · <span className="text-red-400">&lt;10%</span>)
           </p>
         </div>
         {carregandoCorredor && (
