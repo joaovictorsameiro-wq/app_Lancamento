@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { BarChart2, TrendingDown, Users, Zap, Target, Bell, ShoppingCart, BadgeCheck, Sparkles, Loader2 } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
@@ -728,8 +729,18 @@ export default function TrafegoPage() {
         </div>
         {erroIA && <p className="text-xs text-red-400">{erroIA}</p>}
         {analiseIA && (
-          <div className="text-xs text-gray-300 whitespace-pre-wrap leading-relaxed border-t border-violet-500/10 pt-3">
-            {analiseIA}
+          <div className="text-xs text-gray-300 leading-relaxed border-t border-violet-500/10 pt-3 space-y-2
+            [&_h1]:text-sm [&_h1]:font-semibold [&_h1]:text-violet-300 [&_h1]:mt-3
+            [&_h2]:text-sm [&_h2]:font-semibold [&_h2]:text-violet-300 [&_h2]:mt-3
+            [&_h3]:text-xs [&_h3]:font-semibold [&_h3]:text-violet-300 [&_h3]:uppercase [&_h3]:tracking-wide [&_h3]:mt-3
+            [&_p]:mb-2
+            [&_strong]:text-gray-100 [&_strong]:font-semibold
+            [&_ul]:list-disc [&_ul]:pl-4 [&_ul]:space-y-1 [&_ul]:mb-2
+            [&_ol]:list-decimal [&_ol]:pl-4 [&_ol]:space-y-1 [&_ol]:mb-2
+            [&_li]:marker:text-violet-500
+            [&_hr]:border-violet-500/20 [&_hr]:my-3
+            [&_code]:bg-gray-800 [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-violet-300">
+            <ReactMarkdown>{analiseIA}</ReactMarkdown>
           </div>
         )}
         {!analiseIA && !erroIA && !carregandoIA && (
