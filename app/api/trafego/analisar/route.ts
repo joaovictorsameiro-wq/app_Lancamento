@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import Anthropic from '@anthropic-ai/sdk'
+import { GoogleGenAI } from '@google/genai'
 import { getCorredorPolones } from '../../../../lib/db/trafego'
 
 export async function POST(req: NextRequest) {
   const { id } = await req.json()
   if (!id) return NextResponse.json({ error: 'id obrigatório' }, { status: 400 })
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json({ error: 'ANTHROPIC_API_KEY não configurada no servidor' }, { status: 500 })
+  if (!process.env.GEMINI_API_KEY) {
+    return NextResponse.json({ error: 'GEMINI_API_KEY não configurada no servidor' }, { status: 500 })
   }
 
   try {
@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Sem dados de Corredor Polonês para este lançamento' }, { status: 404 })
     }
 
-    const client = new Anthropic()
+    const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
 
     const tabela = dados.map(d => ({
       campanha: d.campanha,
@@ -30,14 +30,7 @@ export async function POST(req: NextRequest) {
       custo_vv95: d.custo_vv95,
     }))
 
-    const msg = await client.messages.create({
-      model: 'claude-opus-4-8',
-      max_tokens: 2000,
-      thinking: { type: 'adaptive' },
-      messages: [
-        {
-          role: 'user',
-          content: `Você é um analista de tráfego pago especializado no método "Corredor Polonês" (teste de retenção de vídeo em anúncios). Analise os dados abaixo de um lançamento e dê recomendações práticas e diretas em português.
+    const prompt = `Você é um analista de tráfego pago especializado no método "Corredor Polonês" (teste de retenção de vídeo em anúncios). Analise os dados abaixo de um lançamento e dê recomendações práticas e diretas em português.
 
 Métricas: hook_rate = % de quem assistiu 3s do vídeo em relação às impressões (quanto maior, melhor o gancho inicial). retencao_25_75 = % de quem chegou em 75% do vídeo entre os que chegaram em 25% (mede se o vídeo "segura" a audiência). custo_vvXX = custo por visualização até XX% do vídeo.
 
@@ -49,15 +42,14 @@ Estruture sua resposta em:
 2. Melhor e pior criativo, com o porquê
 3. Recomendações práticas (o que cortar, o que escalar, o que testar em seguida)
 
-Seja direto, sem enrolação, focado em ação.`,
-        },
-      ],
+Seja direto, sem enrolação, focado em ação.`
+
+    const response = await client.models.generateContent({
+      model: 'gemini-2.5-pro',
+      contents: prompt,
     })
 
-    const texto = msg.content
-      .filter(b => b.type === 'text')
-      .map(b => (b as { text: string }).text)
-      .join('\n')
+    const texto = response.text ?? ''
 
     return NextResponse.json({ analise: texto })
   } catch (err) {
