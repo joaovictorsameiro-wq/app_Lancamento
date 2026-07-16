@@ -94,6 +94,14 @@ function hojeISO() {
   return new Date().toISOString().slice(0, 10)
 }
 
+// Extrai um código curto de criativo (ex: "AT001") do nome da campanha, pra caber em legendas.
+// O 1º segmento é sempre o código do lançamento (ex: LC26) — ignora ele e procura o código de criativo depois.
+function criativoLabel(campanha: string) {
+  const partes = campanha.split('_')
+  const codigo = partes.slice(1).find(p => /^[A-Za-z]{1,4}\d{1,4}$/.test(p))
+  return codigo ?? campanha.slice(0, 20)
+}
+
 const TIPO_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ElementType }> = {
   captacao_pq: { label: 'Captação Quente',  color: 'text-blue-400',   bg: 'bg-blue-500/10 border-blue-500/20',   icon: Zap },
   captacao_pf: { label: 'Captação Fria',    color: 'text-violet-400', bg: 'bg-violet-500/10 border-violet-500/20', icon: Users },
@@ -194,9 +202,11 @@ export default function TrafegoPage() {
     if (typeof va === 'string' || typeof vb === 'string') return ordemAsc ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va))
     return ordemAsc ? (va as number) - (vb as number) : (vb as number) - (va as number)
   })
-  const melhorCampanha = corredor.length > 0
-    ? [...corredor].sort((a, b) => (b.retencao_25_75 ?? -1) - (a.retencao_25_75 ?? -1))[0].campanha
-    : null
+  const rankPorRetencao = new Map(
+    [...corredor]
+      .sort((a, b) => (b.retencao_25_75 ?? -1) - (a.retencao_25_75 ?? -1))
+      .map((c, i) => [c.campanha, i + 1])
+  )
 
   function corHookRate(v: number | null) {
     if (v == null) return 'text-gray-600'
@@ -649,7 +659,7 @@ export default function TrafegoPage() {
                 />
                 <Legend wrapperStyle={{ fontSize: 9 }} />
                 {campanhasDiario.map((camp, i) => (
-                  <Line key={camp} type="monotone" dataKey={camp} name={camp.slice(0, 20)}
+                  <Line key={camp} type="monotone" dataKey={camp} name={criativoLabel(camp)}
                     stroke={CORES_CAMPANHA[i % CORES_CAMPANHA.length]} strokeWidth={2} dot={false} connectNulls />
                 ))}
               </LineChart>
@@ -669,7 +679,7 @@ export default function TrafegoPage() {
                 />
                 <Legend wrapperStyle={{ fontSize: 9 }} />
                 {campanhasDiario.map((camp, i) => (
-                  <Line key={camp} type="monotone" dataKey={camp} name={camp.slice(0, 20)}
+                  <Line key={camp} type="monotone" dataKey={camp} name={criativoLabel(camp)}
                     stroke={CORES_CAMPANHA[i % CORES_CAMPANHA.length]} strokeWidth={2} dot={false} connectNulls />
                 ))}
               </LineChart>
@@ -689,6 +699,7 @@ export default function TrafegoPage() {
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-gray-800">
+                <th className="pb-2 text-left text-gray-400 font-medium w-8">#</th>
                 <th className="pb-2 text-left text-gray-400 font-medium">Campanha</th>
                 {([
                   ['total_gasto', 'Gasto'], ['thruplays', 'ThruPlays'], ['custo_thruplay', 'Custo/ThruPlay'],
@@ -704,18 +715,21 @@ export default function TrafegoPage() {
             </thead>
             <tbody>
               {carregandoCorredor && (
-                <tr><td colSpan={10} className="py-8 text-center text-gray-500">Carregando...</td></tr>
+                <tr><td colSpan={11} className="py-8 text-center text-gray-500">Carregando...</td></tr>
               )}
               {!carregandoCorredor && corredor.length === 0 && (
-                <tr><td colSpan={10} className="py-8 text-center text-gray-500">
+                <tr><td colSpan={11} className="py-8 text-center text-gray-500">
                   Nenhum dado de vídeo encontrado para esse lançamento — verifique se a extração no n8n já traz os campos de vídeo.
                 </td></tr>
               )}
-              {corredorOrdenado.map((c, i) => (
+              {corredorOrdenado.map((c, i) => {
+                const posicao = rankPorRetencao.get(c.campanha) ?? null
+                const medalha = posicao === 1 ? '🥇' : posicao === 2 ? '🥈' : posicao === 3 ? '🥉' : null
+                return (
                 <tr key={i} className="border-b border-gray-800/60 hover:bg-gray-800/20">
+                  <td className="py-2.5 pr-2 text-gray-500 tabular-nums">{medalha ?? posicao}</td>
                   <td className="py-2.5 pr-4">
-                    <span className="text-gray-200 max-w-xs truncate flex items-center gap-1.5" title={c.campanha}>
-                      {c.campanha === melhorCampanha && <span title="Melhor retenção">🏆</span>}
+                    <span className="text-gray-200 max-w-xs truncate block" title={c.campanha}>
                       {c.campanha}
                     </span>
                   </td>
@@ -729,7 +743,8 @@ export default function TrafegoPage() {
                   <td className={`py-2.5 text-right font-medium tabular-nums ${corHookRate(c.hook_rate)}`}>{c.hook_rate != null ? `${(c.hook_rate * 100).toFixed(1)}%` : '—'}</td>
                   <td className={`py-2.5 text-right font-medium tabular-nums ${corRetencao(c.retencao_25_75)}`}>{c.retencao_25_75 != null ? `${(c.retencao_25_75 * 100).toFixed(1)}%` : '—'}</td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         </div>
