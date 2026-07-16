@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { BarChart2, TrendingDown, Users, Zap, Target, Bell, ShoppingCart, BadgeCheck } from 'lucide-react'
+import { BarChart2, TrendingDown, Users, Zap, Target, Bell, ShoppingCart, BadgeCheck, Sparkles, Loader2 } from 'lucide-react'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
@@ -147,6 +147,29 @@ export default function TrafegoPage() {
   const [carregandoCorredor, setCarregandoCorredor] = useState(false)
   const [ordenarPor, setOrdenarPor] = useState<keyof CorredorPolonesRow>('total_gasto')
   const [ordemAsc, setOrdemAsc] = useState(false)
+  const [analiseIA, setAnaliseIA] = useState<string>('')
+  const [carregandoIA, setCarregandoIA] = useState(false)
+  const [erroIA, setErroIA] = useState<string>('')
+
+  async function analisarComIA() {
+    if (!lancamentoId) return
+    setCarregandoIA(true)
+    setErroIA('')
+    try {
+      const res = await fetch('/api/trafego/analisar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: lancamentoId }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'Erro ao gerar análise')
+      setAnaliseIA(json.analise)
+    } catch (e) {
+      setErroIA(e instanceof Error ? e.message : 'Erro ao gerar análise')
+    } finally {
+      setCarregandoIA(false)
+    }
+  }
 
   const fetchAll = useCallback(async () => {
     if (!lancamentoId) return
@@ -687,6 +710,32 @@ export default function TrafegoPage() {
           </div>
         </div>
       )}
+
+      <div className="rounded-xl border border-violet-500/20 bg-violet-500/5 p-4 space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-1.5">
+            <Sparkles size={13} className="text-violet-400" />
+            <p className="text-xs font-semibold text-violet-400 uppercase tracking-wider">Análise com IA</p>
+          </div>
+          <button
+            onClick={analisarComIA}
+            disabled={carregandoIA || corredor.length === 0}
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-violet-500/40 text-violet-300 hover:bg-violet-500/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            {carregandoIA ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+            {carregandoIA ? 'Analisando...' : analiseIA ? 'Analisar novamente' : 'Analisar'}
+          </button>
+        </div>
+        {erroIA && <p className="text-xs text-red-400">{erroIA}</p>}
+        {analiseIA && (
+          <div className="text-xs text-gray-300 whitespace-pre-wrap leading-relaxed border-t border-violet-500/10 pt-3">
+            {analiseIA}
+          </div>
+        )}
+        {!analiseIA && !erroIA && !carregandoIA && (
+          <p className="text-xs text-gray-500">Clique em "Analisar" para a IA avaliar os criativos deste lançamento e sugerir o que cortar, escalar e testar.</p>
+        )}
+      </div>
 
       <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
         <div className="mb-4">
