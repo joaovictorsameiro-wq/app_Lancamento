@@ -755,59 +755,110 @@ export default function TrafegoPage() {
             Hook Rate = reproduções 3s ÷ impressões (🟢 ≥30% · 🟡 20-30% · 🔴 &lt;20%) · Retenção 25→75% = quem viu 75% dentre os que viram 25% (🟢 ≥20% · 🟡 10-20% · 🔴 &lt;10%)
           </p>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-gray-800">
-                <th className="pb-2 text-left text-gray-400 font-medium w-8">#</th>
-                <th className="pb-2 text-left text-gray-400 font-medium">Campanha</th>
-                {([
-                  ['total_gasto', 'Gasto'], ['thruplays', 'ThruPlays'], ['custo_thruplay', 'Custo/ThruPlay'],
-                  ['video_p25', 'VV 25%'], ['video_p50', 'VV 50%'], ['video_p75', 'VV 75%'], ['video_p95', 'VV 95%'],
-                  ['hook_rate', 'Hook Rate'], ['retencao_25_75', 'Retenção 25→75%'],
-                ] as [keyof CorredorPolonesRow, string][]).map(([campo, label]) => (
-                  <th key={campo} className="pb-2 text-right text-gray-400 font-medium cursor-pointer hover:text-gray-200 select-none"
-                    onClick={() => alternarOrdenacao(campo)}>
-                    {label}{ordenarPor === campo ? (ordemAsc ? ' ▲' : ' ▼') : ''}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {carregandoCorredor && (
-                <tr><td colSpan={11} className="py-8 text-center text-gray-500">Carregando...</td></tr>
-              )}
-              {!carregandoCorredor && corredor.length === 0 && (
-                <tr><td colSpan={11} className="py-8 text-center text-gray-500">
-                  Nenhum dado de vídeo encontrado para esse lançamento — verifique se a extração no n8n já traz os campos de vídeo.
-                </td></tr>
-              )}
-              {corredorOrdenado.map((c, i) => {
-                const posicao = rankPorRetencao.get(c.campanha) ?? null
-                const medalha = posicao === 1 ? '🥇' : posicao === 2 ? '🥈' : posicao === 3 ? '🥉' : null
-                return (
-                <tr key={i} className="border-b border-gray-800/60 hover:bg-gray-800/20">
-                  <td className="py-2.5 pr-2 text-gray-500 tabular-nums">{medalha ?? posicao}</td>
-                  <td className="py-2.5 pr-4">
-                    <span className="text-gray-200 max-w-xs truncate block" title={c.campanha}>
-                      {c.campanha}
-                    </span>
-                  </td>
-                  <td className="py-2.5 text-right text-gray-200 tabular-nums">{fmt_currency(c.total_gasto)}</td>
-                  <td className="py-2.5 text-right text-emerald-400 font-medium tabular-nums">{c.thruplays?.toLocaleString('pt-BR') ?? '—'}</td>
-                  <td className="py-2.5 text-right text-blue-400 tabular-nums">{c.custo_thruplay != null ? fmt_currency(c.custo_thruplay) : '—'}</td>
-                  <td className="py-2.5 text-right text-gray-400 tabular-nums">{c.video_p25?.toLocaleString('pt-BR') ?? '—'}</td>
-                  <td className="py-2.5 text-right text-gray-400 tabular-nums">{c.video_p50?.toLocaleString('pt-BR') ?? '—'}</td>
-                  <td className="py-2.5 text-right text-gray-400 tabular-nums">{c.video_p75?.toLocaleString('pt-BR') ?? '—'}</td>
-                  <td className="py-2.5 text-right text-gray-400 tabular-nums">{c.video_p95?.toLocaleString('pt-BR') ?? '—'}</td>
-                  <td className={`py-2.5 text-right font-medium tabular-nums ${corHookRate(c.hook_rate)}`}>{c.hook_rate != null ? `${(c.hook_rate * 100).toFixed(1)}%` : '—'}</td>
-                  <td className={`py-2.5 text-right font-medium tabular-nums ${corRetencao(c.retencao_25_75)}`}>{c.retencao_25_75 != null ? `${(c.retencao_25_75 * 100).toFixed(1)}%` : '—'}</td>
+        {carregandoCorredor && (
+          <p className="py-8 text-center text-gray-500 text-xs">Carregando...</p>
+        )}
+        {!carregandoCorredor && corredor.length === 0 && (
+          <p className="py-8 text-center text-gray-500 text-xs">
+            Nenhum dado de vídeo encontrado para esse lançamento — verifique se a extração no n8n já traz os campos de vídeo.
+          </p>
+        )}
+
+        {/* Mobile: cards empilhados */}
+        {corredor.length > 0 && (
+          <div className="space-y-3 md:hidden">
+            {corredorOrdenado.map((c, i) => {
+              const posicao = rankPorRetencao.get(c.campanha) ?? null
+              const medalha = posicao === 1 ? '🥇' : posicao === 2 ? '🥈' : posicao === 3 ? '🥉' : `#${posicao}`
+              return (
+                <div key={i} className="rounded-lg border border-gray-800 bg-gray-950/50 p-3 space-y-2.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-sm text-gray-100 font-medium leading-snug">{criativoLabel(c.campanha)}</span>
+                    <span className="text-xs text-gray-500 shrink-0">{medalha}</span>
+                  </div>
+                  <p className="text-[10px] text-gray-600 truncate" title={c.campanha}>{c.campanha}</p>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs pt-1 border-t border-gray-800/80">
+                    <div>
+                      <p className="text-gray-500">Hook Rate</p>
+                      <p className={`font-semibold tabular-nums ${corHookRate(c.hook_rate)}`}>{c.hook_rate != null ? `${(c.hook_rate * 100).toFixed(1)}%` : '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Retenção 25→75%</p>
+                      <p className={`font-semibold tabular-nums ${corRetencao(c.retencao_25_75)}`}>{c.retencao_25_75 != null ? `${(c.retencao_25_75 * 100).toFixed(1)}%` : '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Gasto</p>
+                      <p className="text-gray-200 tabular-nums">{fmt_currency(c.total_gasto)}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">Custo/ThruPlay</p>
+                      <p className="text-blue-400 tabular-nums">{c.custo_thruplay != null ? fmt_currency(c.custo_thruplay) : '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">ThruPlays</p>
+                      <p className="text-emerald-400 font-medium tabular-nums">{c.thruplays?.toLocaleString('pt-BR') ?? '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-500">VV 25% / 50% / 75% / 95%</p>
+                      <p className="text-gray-400 tabular-nums">
+                        {c.video_p25?.toLocaleString('pt-BR') ?? '—'} / {c.video_p50?.toLocaleString('pt-BR') ?? '—'} / {c.video_p75?.toLocaleString('pt-BR') ?? '—'} / {c.video_p95?.toLocaleString('pt-BR') ?? '—'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Desktop/tablet: tabela */}
+        {corredor.length > 0 && (
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-gray-800">
+                  <th className="pb-2 text-left text-gray-400 font-medium w-8">#</th>
+                  <th className="pb-2 text-left text-gray-400 font-medium">Campanha</th>
+                  {([
+                    ['total_gasto', 'Gasto'], ['thruplays', 'ThruPlays'], ['custo_thruplay', 'Custo/ThruPlay'],
+                    ['video_p25', 'VV 25%'], ['video_p50', 'VV 50%'], ['video_p75', 'VV 75%'], ['video_p95', 'VV 95%'],
+                    ['hook_rate', 'Hook Rate'], ['retencao_25_75', 'Retenção 25→75%'],
+                  ] as [keyof CorredorPolonesRow, string][]).map(([campo, label]) => (
+                    <th key={campo} className="pb-2 text-right text-gray-400 font-medium cursor-pointer hover:text-gray-200 select-none"
+                      onClick={() => alternarOrdenacao(campo)}>
+                      {label}{ordenarPor === campo ? (ordemAsc ? ' ▲' : ' ▼') : ''}
+                    </th>
+                  ))}
                 </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {corredorOrdenado.map((c, i) => {
+                  const posicao = rankPorRetencao.get(c.campanha) ?? null
+                  const medalha = posicao === 1 ? '🥇' : posicao === 2 ? '🥈' : posicao === 3 ? '🥉' : null
+                  return (
+                  <tr key={i} className="border-b border-gray-800/60 hover:bg-gray-800/20">
+                    <td className="py-2.5 pr-2 text-gray-500 tabular-nums">{medalha ?? posicao}</td>
+                    <td className="py-2.5 pr-4">
+                      <span className="text-gray-200 max-w-xs truncate block" title={c.campanha}>
+                        {c.campanha}
+                      </span>
+                    </td>
+                    <td className="py-2.5 text-right text-gray-200 tabular-nums">{fmt_currency(c.total_gasto)}</td>
+                    <td className="py-2.5 text-right text-emerald-400 font-medium tabular-nums">{c.thruplays?.toLocaleString('pt-BR') ?? '—'}</td>
+                    <td className="py-2.5 text-right text-blue-400 tabular-nums">{c.custo_thruplay != null ? fmt_currency(c.custo_thruplay) : '—'}</td>
+                    <td className="py-2.5 text-right text-gray-400 tabular-nums">{c.video_p25?.toLocaleString('pt-BR') ?? '—'}</td>
+                    <td className="py-2.5 text-right text-gray-400 tabular-nums">{c.video_p50?.toLocaleString('pt-BR') ?? '—'}</td>
+                    <td className="py-2.5 text-right text-gray-400 tabular-nums">{c.video_p75?.toLocaleString('pt-BR') ?? '—'}</td>
+                    <td className="py-2.5 text-right text-gray-400 tabular-nums">{c.video_p95?.toLocaleString('pt-BR') ?? '—'}</td>
+                    <td className={`py-2.5 text-right font-medium tabular-nums ${corHookRate(c.hook_rate)}`}>{c.hook_rate != null ? `${(c.hook_rate * 100).toFixed(1)}%` : '—'}</td>
+                    <td className={`py-2.5 text-right font-medium tabular-nums ${corRetencao(c.retencao_25_75)}`}>{c.retencao_25_75 != null ? `${(c.retencao_25_75 * 100).toFixed(1)}%` : '—'}</td>
+                  </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       </>)}
