@@ -99,7 +99,9 @@ export type AnuncioScore = {
 }
 
 // Corredor Polonês — teste de retenção de vídeo por campanha (só linhas com dado de vídeo).
-export async function getCorredorPolones(idLancamento: string) {
+export async function getCorredorPolones(idLancamento: string, dataInicio?: string, dataFim?: string) {
+  const inicio = dataInicio || null
+  const fim    = dataFim    || null
   return prisma.$queryRaw<CorredorPolonesRow[]>`
     SELECT
       campanha,
@@ -122,6 +124,8 @@ export async function getCorredorPolones(idLancamento: string) {
     FROM trafego_meta
     WHERE id_lancamento = ${idLancamento}
       AND (thruplays IS NOT NULL OR video_plays_3s IS NOT NULL)
+      AND (${inicio}::date IS NULL OR data >= ${inicio}::date)
+      AND (${fim}::date IS NULL OR data <= ${fim}::date)
     GROUP BY campanha
     ORDER BY total_gasto DESC
   `
@@ -187,7 +191,9 @@ export type TrafegoDiario = {
 
 // Classificação de campanha por nome
 // Retorna breakdown por tipo: captacao_pq, captacao_pf, aquecimento, distribuicao, lembrete, venda, outros
-export async function getTrafegoBreakdown(idLancamento: string) {
+export async function getTrafegoBreakdown(idLancamento: string, dataInicio?: string, dataFim?: string) {
+  const inicio = dataInicio || null
+  const fim    = dataFim    || null
   return prisma.$queryRaw<TrafegoBreakdown[]>`
     SELECT
       CASE
@@ -207,12 +213,16 @@ export async function getTrafegoBreakdown(idLancamento: string) {
       SUM(cliques_no_link)::int AS cliques
     FROM trafego_meta
     WHERE id_lancamento = ${idLancamento}
+      AND (${inicio}::date IS NULL OR data >= ${inicio}::date)
+      AND (${fim}::date IS NULL OR data <= ${fim}::date)
     GROUP BY tipo
     ORDER BY gasto DESC
   `
 }
 
-export async function getTrafegoCampanhas(idLancamento: string) {
+export async function getTrafegoCampanhas(idLancamento: string, dataInicio?: string, dataFim?: string) {
+  const inicio = dataInicio || null
+  const fim    = dataFim    || null
   return prisma.$queryRaw<TrafegoCampanha[]>`
     SELECT
       campanha,
@@ -236,6 +246,8 @@ export async function getTrafegoCampanhas(idLancamento: string) {
       CASE WHEN SUM(leads) > 0 THEN ROUND((SUM(total_gasto)/SUM(leads))::numeric,2)::float ELSE NULL END AS cpl
     FROM trafego_meta
     WHERE id_lancamento = ${idLancamento}
+      AND (${inicio}::date IS NULL OR data >= ${inicio}::date)
+      AND (${fim}::date IS NULL OR data <= ${fim}::date)
     GROUP BY campanha
     ORDER BY gasto DESC
   `

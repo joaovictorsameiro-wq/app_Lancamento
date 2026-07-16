@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { BarChart2, TrendingDown, Users, Zap, Target, Bell, ShoppingCart, BadgeCheck, Sparkles, Loader2 } from 'lucide-react'
+import { BarChart2, TrendingDown, Users, Zap, Target, Bell, ShoppingCart, BadgeCheck, Sparkles, Loader2, RefreshCw } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -131,7 +131,7 @@ const CHART_COLORS = {
 }
 
 export default function TrafegoPage() {
-  const [lancamentoId, setLancamentoId] = useState('')
+  const [lancamentoId, setLancamentoId] = useState('LC26')
   const [breakdown, setBreakdown] = useState<Breakdown[]>([])
   const [campanhas, setCampanhas] = useState<Campanha[]>([])
   const [diario, setDiario]       = useState<DiarioDado[]>([])
@@ -181,8 +181,8 @@ export default function TrafegoPage() {
       if (dataFim)    periodo.set('dataFim', dataFim)
 
       const [b, c, d, q, a, qa] = await Promise.all([
-        fetch(`/api/trafego?id=${lancamentoId}&view=breakdown`).then(r => r.json()),
-        fetch(`/api/trafego?id=${lancamentoId}&view=campanhas`).then(r => r.json()),
+        fetch(`/api/trafego?id=${lancamentoId}&view=breakdown&${periodo}`).then(r => r.json()),
+        fetch(`/api/trafego?id=${lancamentoId}&view=campanhas&${periodo}`).then(r => r.json()),
         fetch(`/api/trafego?id=${lancamentoId}&view=diario`).then(r => r.json()),
         fetch(`/api/trafego?id=${lancamentoId}&view=qualificacao`).then(r => r.json()),
         fetch(`/api/trafego?id=${lancamentoId}&view=anuncios&${periodo}`).then(r => r.json()),
@@ -201,19 +201,33 @@ export default function TrafegoPage() {
 
   useEffect(() => { fetchAll() }, [fetchAll])
 
-  useEffect(() => {
-    if (aba !== 'corredor' || !lancamentoId) return
+  const fetchCorredor = useCallback(async () => {
+    if (!lancamentoId) return
     setCarregandoCorredor(true)
-    Promise.all([
-      fetch(`/api/trafego?id=${lancamentoId}&view=corredor-polones`).then(r => r.json()),
-      fetch(`/api/trafego?id=${lancamentoId}&view=corredor-polones-diario`).then(r => r.json()),
-    ])
-      .then(([c, d]) => {
-        setCorredor(Array.isArray(c) ? c : [])
-        setCorredorDiario(Array.isArray(d) ? d : [])
-      })
-      .finally(() => setCarregandoCorredor(false))
-  }, [aba, lancamentoId])
+    try {
+      const periodo = new URLSearchParams()
+      if (dataInicio) periodo.set('dataInicio', dataInicio)
+      if (dataFim)    periodo.set('dataFim', dataFim)
+      const [c, d] = await Promise.all([
+        fetch(`/api/trafego?id=${lancamentoId}&view=corredor-polones&${periodo}`).then(r => r.json()),
+        fetch(`/api/trafego?id=${lancamentoId}&view=corredor-polones-diario`).then(r => r.json()),
+      ])
+      setCorredor(Array.isArray(c) ? c : [])
+      setCorredorDiario(Array.isArray(d) ? d : [])
+    } finally {
+      setCarregandoCorredor(false)
+    }
+  }, [lancamentoId, dataInicio, dataFim])
+
+  useEffect(() => {
+    if (aba !== 'corredor') return
+    fetchCorredor()
+  }, [aba, fetchCorredor])
+
+  function atualizarDados() {
+    fetchAll()
+    if (aba === 'corredor') fetchCorredor()
+  }
 
   function alternarOrdenacao(campo: keyof CorredorPolonesRow) {
     if (ordenarPor === campo) setOrdemAsc(v => !v)
@@ -328,20 +342,61 @@ export default function TrafegoPage() {
       </div>
 
       {/* Abas */}
-      <div className="flex gap-1.5 border-b border-gray-800 pb-px">
-        {(['captacao', 'corredor'] as const).map(a => (
+      <div className="flex items-center justify-between border-b border-gray-800 pb-px flex-wrap gap-2">
+        <div className="flex gap-1.5">
+          {(['captacao', 'corredor'] as const).map(a => (
+            <button
+              key={a}
+              onClick={() => setAba(a)}
+              className={`text-xs px-3 py-2 border-b-2 transition-colors ${
+                aba === a
+                  ? 'border-emerald-500 text-emerald-400'
+                  : 'border-transparent text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              {a === 'captacao' ? 'Captação' : 'Corredor Polonês'}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-1.5 pb-1.5">
+          <input
+            type="date"
+            value={dataInicio}
+            onChange={e => setDataInicio(e.target.value)}
+            className="rounded-lg border border-gray-700 bg-gray-800/80 px-2 py-1 text-xs text-gray-200"
+          />
+          <span className="text-gray-600 text-xs">até</span>
+          <input
+            type="date"
+            value={dataFim}
+            onChange={e => setDataFim(e.target.value)}
+            className="rounded-lg border border-gray-700 bg-gray-800/80 px-2 py-1 text-xs text-gray-200"
+          />
           <button
-            key={a}
-            onClick={() => setAba(a)}
-            className={`text-xs px-3 py-2 border-b-2 transition-colors ${
-              aba === a
-                ? 'border-emerald-500 text-emerald-400'
-                : 'border-transparent text-gray-500 hover:text-gray-300'
-            }`}
+            onClick={() => { const h = hojeISO(); setDataInicio(h); setDataFim(h) }}
+            className="text-xs px-2.5 py-1 rounded-full border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
           >
-            {a === 'captacao' ? 'Captação' : 'Corredor Polonês'}
+            Hoje
           </button>
-        ))}
+          {(dataInicio || dataFim) && (
+            <button
+              onClick={() => { setDataInicio(''); setDataFim('') }}
+              className="text-xs px-2.5 py-1 rounded-full border border-gray-700 text-gray-500 hover:text-gray-300"
+            >
+              Limpar
+            </button>
+          )}
+          <button
+            onClick={atualizarDados}
+            disabled={loading || carregandoCorredor}
+            title="Atualizar dados"
+            className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-600 disabled:opacity-40 transition-colors"
+          >
+            <RefreshCw size={12} className={(loading || carregandoCorredor) ? 'animate-spin' : ''} />
+            Atualizar
+          </button>
+        </div>
       </div>
 
       {!lancamentoId && (
@@ -563,39 +618,10 @@ export default function TrafegoPage() {
 
       {/* Tabela de anúncios */}
       <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
-        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <div className="mb-4">
           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
             Performance por Anúncio · {anuncios.length}
           </p>
-          <div className="flex items-center gap-1.5">
-            <input
-              type="date"
-              value={dataInicio}
-              onChange={e => setDataInicio(e.target.value)}
-              className="rounded-lg border border-gray-700 bg-gray-800/80 px-2 py-1 text-xs text-gray-200"
-            />
-            <span className="text-gray-600 text-xs">até</span>
-            <input
-              type="date"
-              value={dataFim}
-              onChange={e => setDataFim(e.target.value)}
-              className="rounded-lg border border-gray-700 bg-gray-800/80 px-2 py-1 text-xs text-gray-200"
-            />
-            <button
-              onClick={() => { const h = hojeISO(); setDataInicio(h); setDataFim(h) }}
-              className="text-xs px-2.5 py-1 rounded-full border border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
-            >
-              Hoje
-            </button>
-            {(dataInicio || dataFim) && (
-              <button
-                onClick={() => { setDataInicio(''); setDataFim('') }}
-                className="text-xs px-2.5 py-1 rounded-full border border-gray-700 text-gray-500 hover:text-gray-300"
-              >
-                Limpar
-              </button>
-            )}
-          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
