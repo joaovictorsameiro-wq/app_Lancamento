@@ -95,6 +95,45 @@ function hojeISO() {
   return new Date().toISOString().slice(0, 10)
 }
 
+type ColunaCorredor = Exclude<keyof CorredorPolonesRow, 'campanha'>
+
+// Todas as métricas de vídeo disponíveis da extração Meta, na ordem em que aparecem na tabela.
+const COLUNAS_CORREDOR: { campo: ColunaCorredor; label: string }[] = [
+  { campo: 'total_gasto',     label: 'Gasto' },
+  { campo: 'thruplays',       label: 'ThruPlays' },
+  { campo: 'custo_thruplay',  label: 'Custo/ThruPlay' },
+  { campo: 'video_plays_3s',  label: 'VV 3s' },
+  { campo: 'video_p25',       label: 'VV 25%' },
+  { campo: 'video_p50',       label: 'VV 50%' },
+  { campo: 'video_p75',       label: 'VV 75%' },
+  { campo: 'video_p95',       label: 'VV 95%' },
+  { campo: 'video_p100',      label: 'VV 100%' },
+  { campo: 'video_plays',     label: 'Total Plays' },
+  { campo: 'custo_vv25',      label: 'Custo VV 25%' },
+  { campo: 'custo_vv50',      label: 'Custo VV 50%' },
+  { campo: 'custo_vv75',      label: 'Custo VV 75%' },
+  { campo: 'custo_vv95',      label: 'Custo VV 95%' },
+  { campo: 'hook_rate',       label: 'Hook Rate' },
+  { campo: 'retencao_25_75',  label: 'Retenção 25→75%' },
+]
+const COLUNAS_PADRAO: ColunaCorredor[] = [
+  'total_gasto', 'thruplays', 'custo_thruplay', 'video_p25', 'video_p50', 'video_p75', 'video_p95', 'hook_rate', 'retencao_25_75',
+]
+const COLUNAS_STORAGE_KEY = 'corredor-polones-colunas'
+
+function carregarColunasVisiveis(): ColunaCorredor[] {
+  if (typeof window === 'undefined') return COLUNAS_PADRAO
+  try {
+    const salvo = window.localStorage.getItem(COLUNAS_STORAGE_KEY)
+    if (!salvo) return COLUNAS_PADRAO
+    const lista = JSON.parse(salvo) as string[]
+    const validas = lista.filter((c): c is ColunaCorredor => COLUNAS_CORREDOR.some(col => col.campo === c))
+    return validas.length > 0 ? validas : COLUNAS_PADRAO
+  } catch {
+    return COLUNAS_PADRAO
+  }
+}
+
 // Extrai um código curto de criativo (ex: "AT001") do nome da campanha, pra caber em legendas.
 // O 1º segmento é sempre o código do lançamento (ex: LC26) — ignora ele e procura o código de criativo depois.
 function criativoLabel(campanha: string) {
@@ -143,14 +182,31 @@ export default function TrafegoPage() {
   const [dataInicio, setDataInicio] = useState('')
   const [dataFim, setDataFim]       = useState('')
   const [aba, setAba] = useState<'captacao' | 'corredor'>('captacao')
-  const [corredor, setCorredor] = useState<CorredorPolonesRow[]>([])
+  const [corredorTurbinamento, setCorredorTurbinamento] = useState<CorredorPolonesRow[]>([])
+  const [corredorDistribuicao, setCorredorDistribuicao] = useState<CorredorPolonesRow[]>([])
+  const [nivelDistribuicao, setNivelDistribuicao] = useState<'campanha' | 'conjunto' | 'anuncio'>('anuncio')
   const [corredorDiario, setCorredorDiario] = useState<CorredorPolonesDiaRow[]>([])
+  const [categoriaGrafico, setCategoriaGrafico] = useState<'turbinamento' | 'distribuicao'>('turbinamento')
   const [carregandoCorredor, setCarregandoCorredor] = useState(false)
-  const [ordenarPor, setOrdenarPor] = useState<keyof CorredorPolonesRow>('total_gasto')
-  const [ordemAsc, setOrdemAsc] = useState(false)
+  const [ordenarPorT, setOrdenarPorT] = useState<keyof CorredorPolonesRow>('total_gasto')
+  const [ordemAscT, setOrdemAscT] = useState(false)
+  const [ordenarPorD, setOrdenarPorD] = useState<keyof CorredorPolonesRow>('total_gasto')
+  const [ordemAscD, setOrdemAscD] = useState(false)
+  const [colunasVisiveis, setColunasVisiveis] = useState<ColunaCorredor[]>(COLUNAS_PADRAO)
+  const [seletorColunasAberto, setSeletorColunasAberto] = useState(false)
   const [analiseIA, setAnaliseIA] = useState<string>('')
   const [carregandoIA, setCarregandoIA] = useState(false)
   const [erroIA, setErroIA] = useState<string>('')
+
+  useEffect(() => { setColunasVisiveis(carregarColunasVisiveis()) }, [])
+
+  function alternarColuna(campo: ColunaCorredor) {
+    setColunasVisiveis(atual => {
+      const nova = atual.includes(campo) ? atual.filter(c => c !== campo) : [...atual, campo]
+      window.localStorage.setItem(COLUNAS_STORAGE_KEY, JSON.stringify(nova))
+      return nova
+    })
+  }
 
   async function analisarComIA() {
     if (!lancamentoId) return
@@ -208,16 +264,26 @@ export default function TrafegoPage() {
       const periodo = new URLSearchParams()
       if (dataInicio) periodo.set('dataInicio', dataInicio)
       if (dataFim)    periodo.set('dataFim', dataFim)
-      const [c, d] = await Promise.all([
-        fetch(`/api/trafego?id=${lancamentoId}&view=corredor-polones&${periodo}`).then(r => r.json()),
-        fetch(`/api/trafego?id=${lancamentoId}&view=corredor-polones-diario`).then(r => r.json()),
+
+      const periodoDistribuicao = new URLSearchParams(periodo)
+      periodoDistribuicao.set('categoria', 'distribuicao')
+      periodoDistribuicao.set('nivel', nivelDistribuicao)
+
+      const periodoTurbinamento = new URLSearchParams(periodo)
+      periodoTurbinamento.set('categoria', 'turbinamento')
+
+      const [t, dist, d] = await Promise.all([
+        fetch(`/api/trafego?id=${lancamentoId}&view=corredor-polones&${periodoTurbinamento}`).then(r => r.json()),
+        fetch(`/api/trafego?id=${lancamentoId}&view=corredor-polones&${periodoDistribuicao}`).then(r => r.json()),
+        fetch(`/api/trafego?id=${lancamentoId}&view=corredor-polones-diario&categoria=${categoriaGrafico}`).then(r => r.json()),
       ])
-      setCorredor(Array.isArray(c) ? c : [])
+      setCorredorTurbinamento(Array.isArray(t) ? t : [])
+      setCorredorDistribuicao(Array.isArray(dist) ? dist : [])
       setCorredorDiario(Array.isArray(d) ? d : [])
     } finally {
       setCarregandoCorredor(false)
     }
-  }, [lancamentoId, dataInicio, dataFim])
+  }, [lancamentoId, dataInicio, dataFim, nivelDistribuicao, categoriaGrafico])
 
   useEffect(() => {
     if (aba !== 'corredor') return
@@ -229,22 +295,34 @@ export default function TrafegoPage() {
     if (aba === 'corredor') fetchCorredor()
   }
 
-  function alternarOrdenacao(campo: keyof CorredorPolonesRow) {
-    if (ordenarPor === campo) setOrdemAsc(v => !v)
-    else { setOrdenarPor(campo); setOrdemAsc(false) }
+  function ordenarLinhas(linhas: CorredorPolonesRow[], campo: keyof CorredorPolonesRow, asc: boolean) {
+    return [...linhas].sort((a, b) => {
+      const va = a[campo] ?? -Infinity
+      const vb = b[campo] ?? -Infinity
+      if (typeof va === 'string' || typeof vb === 'string') return asc ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va))
+      return asc ? (va as number) - (vb as number) : (vb as number) - (va as number)
+    })
   }
 
-  const corredorOrdenado = [...corredor].sort((a, b) => {
-    const va = a[ordenarPor] ?? -Infinity
-    const vb = b[ordenarPor] ?? -Infinity
-    if (typeof va === 'string' || typeof vb === 'string') return ordemAsc ? String(va).localeCompare(String(vb)) : String(vb).localeCompare(String(va))
-    return ordemAsc ? (va as number) - (vb as number) : (vb as number) - (va as number)
-  })
-  const rankPorRetencao = new Map(
-    [...corredor]
-      .sort((a, b) => (b.retencao_25_75 ?? -1) - (a.retencao_25_75 ?? -1))
-      .map((c, i) => [c.campanha, i + 1])
-  )
+  function rankearPorRetencao(linhas: CorredorPolonesRow[]) {
+    return new Map(
+      [...linhas]
+        .sort((a, b) => (b.retencao_25_75 ?? -1) - (a.retencao_25_75 ?? -1))
+        .map((c, i) => [c.campanha, i + 1])
+    )
+  }
+
+  const turbinamentoOrdenado = ordenarLinhas(corredorTurbinamento, ordenarPorT, ordemAscT)
+  const rankTurbinamento = rankearPorRetencao(corredorTurbinamento)
+  const distribuicaoOrdenado = ordenarLinhas(corredorDistribuicao, ordenarPorD, ordemAscD)
+  const rankDistribuicao = rankearPorRetencao(corredorDistribuicao)
+
+  function formatarValorColuna(campo: ColunaCorredor, valor: number | null) {
+    if (valor == null) return '—'
+    if (campo === 'hook_rate' || campo === 'retencao_25_75') return `${(valor * 100).toFixed(1)}%`
+    if (campo === 'total_gasto' || campo.startsWith('custo')) return fmt_currency(valor)
+    return valor.toLocaleString('pt-BR')
+  }
 
   function corHookRate(v: number | null) {
     if (v == null) return 'text-gray-600'
@@ -257,6 +335,100 @@ export default function TrafegoPage() {
     if (v >= 0.20) return 'text-emerald-400'
     if (v >= 0.10) return 'text-yellow-400'
     return 'text-red-400'
+  }
+
+  function corColuna(campo: ColunaCorredor, valor: number | null) {
+    if (campo === 'hook_rate') return corHookRate(valor)
+    if (campo === 'retencao_25_75') return corRetencao(valor)
+    return 'text-gray-200'
+  }
+
+  function renderTabelaCorredor(
+    rows: CorredorPolonesRow[],
+    ordenado: CorredorPolonesRow[],
+    ordenarPor: keyof CorredorPolonesRow,
+    setOrdenarPor: (c: keyof CorredorPolonesRow) => void,
+    ordemAsc: boolean,
+    setOrdemAsc: React.Dispatch<React.SetStateAction<boolean>>,
+    rank: Map<string, number>,
+    colunaLabel: string,
+  ) {
+    function alternar(campo: keyof CorredorPolonesRow) {
+      if (ordenarPor === campo) setOrdemAsc(v => !v)
+      else { setOrdenarPor(campo); setOrdemAsc(false) }
+    }
+    const colunas = COLUNAS_CORREDOR.filter(c => colunasVisiveis.includes(c.campo))
+    return (
+      <>
+        {rows.length === 0 && !carregandoCorredor && (
+          <p className="py-8 text-center text-gray-500 text-xs">Nenhum dado de vídeo encontrado para essa categoria.</p>
+        )}
+        {rows.length > 0 && (
+          <div className="space-y-3 md:hidden">
+            {ordenado.map((c, i) => {
+              const posicao = rank.get(c.campanha) ?? null
+              const medalha = posicao === 1 ? '🥇' : posicao === 2 ? '🥈' : posicao === 3 ? '🥉' : `#${posicao}`
+              return (
+                <div key={i} className="rounded-lg border border-gray-800 bg-gray-950/50 p-3 space-y-2.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="text-sm text-gray-100 font-medium leading-snug">{criativoLabel(c.campanha)}</span>
+                    <span className="text-xs text-gray-500 shrink-0">{medalha}</span>
+                  </div>
+                  <p className="text-[10px] text-gray-600 truncate" title={c.campanha}>{c.campanha}</p>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs pt-1 border-t border-gray-800/80">
+                    {colunas.map(col => (
+                      <div key={col.campo}>
+                        <p className="text-gray-500">{col.label}</p>
+                        <p className={`font-medium tabular-nums ${corColuna(col.campo, c[col.campo] as number | null)}`}>
+                          {formatarValorColuna(col.campo, c[col.campo] as number | null)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+        {rows.length > 0 && (
+          <div className="hidden md:block overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-gray-800">
+                  <th className="pb-2 text-left text-gray-400 font-medium w-8">#</th>
+                  <th className="pb-2 text-left text-gray-400 font-medium">{colunaLabel}</th>
+                  {colunas.map(col => (
+                    <th key={col.campo} className="pb-2 text-right text-gray-400 font-medium cursor-pointer hover:text-gray-200 select-none"
+                      onClick={() => alternar(col.campo)}>
+                      {col.label}{ordenarPor === col.campo ? (ordemAsc ? ' ▲' : ' ▼') : ''}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {ordenado.map((c, i) => {
+                  const posicao = rank.get(c.campanha) ?? null
+                  const medalha = posicao === 1 ? '🥇' : posicao === 2 ? '🥈' : posicao === 3 ? '🥉' : null
+                  return (
+                    <tr key={i} className="border-b border-gray-800/60 hover:bg-gray-800/20">
+                      <td className="py-2.5 pr-2 text-gray-500 tabular-nums">{medalha ?? posicao}</td>
+                      <td className="py-2.5 pr-4">
+                        <span className="text-gray-200 max-w-xs truncate block" title={c.campanha}>{c.campanha}</span>
+                      </td>
+                      {colunas.map(col => (
+                        <td key={col.campo} className={`py-2.5 text-right tabular-nums ${corColuna(col.campo, c[col.campo] as number | null)}`}>
+                          {formatarValorColuna(col.campo, c[col.campo] as number | null)}
+                        </td>
+                      ))}
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </>
+    )
   }
 
   // Monta série diária: uma coluna por campanha, pra plotar várias linhas no mesmo gráfico
@@ -692,6 +864,53 @@ export default function TrafegoPage() {
 
       {lancamentoId && aba === 'corredor' && (<>
 
+      {/* Toggle de categoria + seletor de colunas */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-gray-500 uppercase tracking-wider mr-1">Gráficos:</span>
+          {(['turbinamento', 'distribuicao'] as const).map(cat => (
+            <button
+              key={cat}
+              onClick={() => setCategoriaGrafico(cat)}
+              className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                categoriaGrafico === cat
+                  ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                  : 'border-gray-700 text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              {cat === 'turbinamento' ? 'Turbinamento' : 'Distribuição'}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative">
+          <button
+            onClick={() => setSeletorColunasAberto(o => !o)}
+            className="text-xs px-2.5 py-1 rounded-lg border border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-colors"
+          >
+            Colunas ({colunasVisiveis.length})
+          </button>
+          {seletorColunasAberto && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setSeletorColunasAberto(false)} />
+              <div className="absolute right-0 top-full z-20 mt-1 w-56 rounded-xl border border-gray-700 bg-gray-900 shadow-2xl p-1.5 space-y-0.5 max-h-80 overflow-y-auto">
+                {COLUNAS_CORREDOR.map(col => (
+                  <label key={col.campo} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-gray-200 hover:bg-gray-800 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={colunasVisiveis.includes(col.campo)}
+                      onChange={() => alternarColuna(col.campo)}
+                      className="accent-emerald-500"
+                    />
+                    {col.label}
+                  </label>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
       {/* Evolução diária */}
       {corredorDiario.length > 0 && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -746,7 +965,7 @@ export default function TrafegoPage() {
           </div>
           <button
             onClick={analisarComIA}
-            disabled={carregandoIA || corredor.length === 0}
+            disabled={carregandoIA || (corredorTurbinamento.length === 0 && corredorDistribuicao.length === 0)}
             className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-violet-500/40 text-violet-300 hover:bg-violet-500/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {carregandoIA ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
@@ -774,116 +993,50 @@ export default function TrafegoPage() {
         )}
       </div>
 
+      {/* Tabela — Turbinamento */}
       <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
         <div className="mb-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Corredor Polonês — Teste de Vídeo por Campanha</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Corredor Polonês — Turbinamento</p>
           <p className="text-[10px] text-gray-600 mt-0.5">
             Hook Rate = reproduções 3s ÷ impressões (<span className="text-emerald-400">≥30%</span> · <span className="text-yellow-400">20-30%</span> · <span className="text-red-400">&lt;20%</span>) · Retenção 25→75% = quem viu 75% dentre os que viram 25% (<span className="text-emerald-400">≥20%</span> · <span className="text-yellow-400">10-20%</span> · <span className="text-red-400">&lt;10%</span>)
           </p>
         </div>
-        {carregandoCorredor && (
-          <p className="py-8 text-center text-gray-500 text-xs">Carregando...</p>
+        {carregandoCorredor && <p className="py-8 text-center text-gray-500 text-xs">Carregando...</p>}
+        {!carregandoCorredor && renderTabelaCorredor(
+          corredorTurbinamento, turbinamentoOrdenado, ordenarPorT, setOrdenarPorT, ordemAscT, setOrdemAscT, rankTurbinamento, 'Campanha',
         )}
-        {!carregandoCorredor && corredor.length === 0 && (
-          <p className="py-8 text-center text-gray-500 text-xs">
-            Nenhum dado de vídeo encontrado para esse lançamento — verifique se a extração no n8n já traz os campos de vídeo.
-          </p>
-        )}
+      </div>
 
-        {/* Mobile: cards empilhados */}
-        {corredor.length > 0 && (
-          <div className="space-y-3 md:hidden">
-            {corredorOrdenado.map((c, i) => {
-              const posicao = rankPorRetencao.get(c.campanha) ?? null
-              const medalha = posicao === 1 ? '🥇' : posicao === 2 ? '🥈' : posicao === 3 ? '🥉' : `#${posicao}`
-              return (
-                <div key={i} className="rounded-lg border border-gray-800 bg-gray-950/50 p-3 space-y-2.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="text-sm text-gray-100 font-medium leading-snug">{criativoLabel(c.campanha)}</span>
-                    <span className="text-xs text-gray-500 shrink-0">{medalha}</span>
-                  </div>
-                  <p className="text-[10px] text-gray-600 truncate" title={c.campanha}>{c.campanha}</p>
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs pt-1 border-t border-gray-800/80">
-                    <div>
-                      <p className="text-gray-500">Hook Rate</p>
-                      <p className={`font-semibold tabular-nums ${corHookRate(c.hook_rate)}`}>{c.hook_rate != null ? `${(c.hook_rate * 100).toFixed(1)}%` : '—'}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500">Retenção 25→75%</p>
-                      <p className={`font-semibold tabular-nums ${corRetencao(c.retencao_25_75)}`}>{c.retencao_25_75 != null ? `${(c.retencao_25_75 * 100).toFixed(1)}%` : '—'}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500">Gasto</p>
-                      <p className="text-gray-200 tabular-nums">{fmt_currency(c.total_gasto)}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500">Custo/ThruPlay</p>
-                      <p className="text-blue-400 tabular-nums">{c.custo_thruplay != null ? fmt_currency(c.custo_thruplay) : '—'}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500">ThruPlays</p>
-                      <p className="text-emerald-400 font-medium tabular-nums">{c.thruplays?.toLocaleString('pt-BR') ?? '—'}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500">VV 25% / 50% / 75% / 95%</p>
-                      <p className="text-gray-400 tabular-nums">
-                        {c.video_p25?.toLocaleString('pt-BR') ?? '—'} / {c.video_p50?.toLocaleString('pt-BR') ?? '—'} / {c.video_p75?.toLocaleString('pt-BR') ?? '—'} / {c.video_p95?.toLocaleString('pt-BR') ?? '—'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
+      {/* Tabela — Distribuição */}
+      <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+        <div className="mb-4 flex items-start justify-between flex-wrap gap-2">
+          <div>
+            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Corredor Polonês — Distribuição</p>
+            <p className="text-[10px] text-gray-600 mt-0.5">
+              Hook Rate = reproduções 3s ÷ impressões (<span className="text-emerald-400">≥30%</span> · <span className="text-yellow-400">20-30%</span> · <span className="text-red-400">&lt;20%</span>) · Retenção 25→75% = quem viu 75% dentre os que viram 25% (<span className="text-emerald-400">≥20%</span> · <span className="text-yellow-400">10-20%</span> · <span className="text-red-400">&lt;10%</span>)
+            </p>
           </div>
-        )}
-
-        {/* Desktop/tablet: tabela */}
-        {corredor.length > 0 && (
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="border-b border-gray-800">
-                  <th className="pb-2 text-left text-gray-400 font-medium w-8">#</th>
-                  <th className="pb-2 text-left text-gray-400 font-medium">Campanha</th>
-                  {([
-                    ['total_gasto', 'Gasto'], ['thruplays', 'ThruPlays'], ['custo_thruplay', 'Custo/ThruPlay'],
-                    ['video_p25', 'VV 25%'], ['video_p50', 'VV 50%'], ['video_p75', 'VV 75%'], ['video_p95', 'VV 95%'],
-                    ['hook_rate', 'Hook Rate'], ['retencao_25_75', 'Retenção 25→75%'],
-                  ] as [keyof CorredorPolonesRow, string][]).map(([campo, label]) => (
-                    <th key={campo} className="pb-2 text-right text-gray-400 font-medium cursor-pointer hover:text-gray-200 select-none"
-                      onClick={() => alternarOrdenacao(campo)}>
-                      {label}{ordenarPor === campo ? (ordemAsc ? ' ▲' : ' ▼') : ''}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {corredorOrdenado.map((c, i) => {
-                  const posicao = rankPorRetencao.get(c.campanha) ?? null
-                  const medalha = posicao === 1 ? '🥇' : posicao === 2 ? '🥈' : posicao === 3 ? '🥉' : null
-                  return (
-                  <tr key={i} className="border-b border-gray-800/60 hover:bg-gray-800/20">
-                    <td className="py-2.5 pr-2 text-gray-500 tabular-nums">{medalha ?? posicao}</td>
-                    <td className="py-2.5 pr-4">
-                      <span className="text-gray-200 max-w-xs truncate block" title={c.campanha}>
-                        {c.campanha}
-                      </span>
-                    </td>
-                    <td className="py-2.5 text-right text-gray-200 tabular-nums">{fmt_currency(c.total_gasto)}</td>
-                    <td className="py-2.5 text-right text-emerald-400 font-medium tabular-nums">{c.thruplays?.toLocaleString('pt-BR') ?? '—'}</td>
-                    <td className="py-2.5 text-right text-blue-400 tabular-nums">{c.custo_thruplay != null ? fmt_currency(c.custo_thruplay) : '—'}</td>
-                    <td className="py-2.5 text-right text-gray-400 tabular-nums">{c.video_p25?.toLocaleString('pt-BR') ?? '—'}</td>
-                    <td className="py-2.5 text-right text-gray-400 tabular-nums">{c.video_p50?.toLocaleString('pt-BR') ?? '—'}</td>
-                    <td className="py-2.5 text-right text-gray-400 tabular-nums">{c.video_p75?.toLocaleString('pt-BR') ?? '—'}</td>
-                    <td className="py-2.5 text-right text-gray-400 tabular-nums">{c.video_p95?.toLocaleString('pt-BR') ?? '—'}</td>
-                    <td className={`py-2.5 text-right font-medium tabular-nums ${corHookRate(c.hook_rate)}`}>{c.hook_rate != null ? `${(c.hook_rate * 100).toFixed(1)}%` : '—'}</td>
-                    <td className={`py-2.5 text-right font-medium tabular-nums ${corRetencao(c.retencao_25_75)}`}>{c.retencao_25_75 != null ? `${(c.retencao_25_75 * 100).toFixed(1)}%` : '—'}</td>
-                  </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-gray-500 uppercase tracking-wider mr-1">Nível:</span>
+            {(['campanha', 'conjunto', 'anuncio'] as const).map(n => (
+              <button
+                key={n}
+                onClick={() => setNivelDistribuicao(n)}
+                className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                  nivelDistribuicao === n
+                    ? 'bg-teal-500/20 border-teal-500/40 text-teal-400'
+                    : 'border-gray-700 text-gray-500 hover:text-gray-300'
+                }`}
+              >
+                {n === 'campanha' ? 'Campanha' : n === 'conjunto' ? 'Conjunto' : 'Anúncio'}
+              </button>
+            ))}
           </div>
+        </div>
+        {carregandoCorredor && <p className="py-8 text-center text-gray-500 text-xs">Carregando...</p>}
+        {!carregandoCorredor && renderTabelaCorredor(
+          corredorDistribuicao, distribuicaoOrdenado, ordenarPorD, setOrdenarPorD, ordemAscD, setOrdemAscD, rankDistribuicao,
+          nivelDistribuicao === 'campanha' ? 'Campanha' : nivelDistribuicao === 'conjunto' ? 'Conjunto' : 'Anúncio',
         )}
       </div>
 

@@ -8,6 +8,8 @@ import {
   getTrafegoCampanhas,
   getCorredorPolones,
   getCorredorPolonesDiario,
+  type CorredorPolonesCategoria,
+  type CorredorPolonesNivel,
 } from '../../../lib/db/trafego'
 import { getQualificacaoPorTipo, getQualificacaoPorAnuncio } from '../../../lib/db/avatar'
 
@@ -17,6 +19,8 @@ export async function GET(req: NextRequest) {
   const view = searchParams.get('view') ?? 'diario'
   const dataInicio = searchParams.get('dataInicio') ?? undefined
   const dataFim    = searchParams.get('dataFim') ?? undefined
+  const categoria  = (searchParams.get('categoria') ?? undefined) as CorredorPolonesCategoria | undefined
+  const nivel      = (searchParams.get('nivel') ?? 'campanha') as CorredorPolonesNivel
 
   if (!id) return NextResponse.json({ error: 'id obrigatório' }, { status: 400 })
 
@@ -28,8 +32,8 @@ export async function GET(req: NextRequest) {
     else if (view === 'campanhas') data = await getTrafegoCampanhas(id, dataInicio, dataFim)
     else if (view === 'agregado') data = await getTrafegoAgregado(id)
     else if (view === 'anuncios') data = await getTrafegoAnuncios(id, dataInicio, dataFim)
-    else if (view === 'corredor-polones') data = await getCorredorPolones(id, dataInicio, dataFim)
-    else if (view === 'corredor-polones-diario') data = await getCorredorPolonesDiario(id)
+    else if (view === 'corredor-polones') data = await getCorredorPolones(id, dataInicio, dataFim, categoria, nivel)
+    else if (view === 'corredor-polones-diario') data = await getCorredorPolonesDiario(id, categoria)
     else if (view === 'diario') data = await getTrafegoDiario(id)
     else data = await getTrafegoByLancamento(id)
 

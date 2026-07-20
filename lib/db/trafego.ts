@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client'
 import { prisma } from '../prisma'
 
 export async function getTrafegoByLancamento(idLancamento: string) {
@@ -98,13 +99,38 @@ export type AnuncioScore = {
   cpl: number
 }
 
-// Corredor Polonês — teste de retenção de vídeo por campanha (só linhas com dado de vídeo).
-export async function getCorredorPolones(idLancamento: string, dataInicio?: string, dataFim?: string) {
+export type CorredorPolonesCategoria = 'turbinamento' | 'distribuicao'
+export type CorredorPolonesNivel = 'campanha' | 'conjunto' | 'anuncio'
+
+function filtroCategoriaSql(categoria?: CorredorPolonesCategoria) {
+  if (categoria === 'turbinamento') return Prisma.sql`AND campanha ILIKE '%Turbinamento%'`
+  if (categoria === 'distribuicao') return Prisma.sql`AND campanha ILIKE '%Distribuicao%'`
+  return Prisma.empty
+}
+
+function colunaNivelSql(nivel: CorredorPolonesNivel) {
+  if (nivel === 'anuncio')  return Prisma.sql`anuncio`
+  if (nivel === 'conjunto') return Prisma.sql`conjunto_anuncio`
+  return Prisma.sql`campanha`
+}
+
+// Corredor Polonês — teste de retenção de vídeo, agrupável por campanha/conjunto/anúncio
+// e filtrável por categoria (Turbinamento vs Distribuição), só linhas com dado de vídeo.
+export async function getCorredorPolones(
+  idLancamento: string,
+  dataInicio?: string,
+  dataFim?: string,
+  categoria?: CorredorPolonesCategoria,
+  nivel: CorredorPolonesNivel = 'campanha',
+) {
   const inicio = dataInicio || null
   const fim    = dataFim    || null
+  const coluna = colunaNivelSql(nivel)
+  const filtroCategoria = filtroCategoriaSql(categoria)
+
   return prisma.$queryRaw<CorredorPolonesRow[]>`
     SELECT
-      campanha,
+      ${coluna} AS campanha,
       SUM(total_gasto)::float AS total_gasto,
       SUM(thruplays)::int AS thruplays,
       CASE WHEN SUM(thruplays) > 0 THEN SUM(total_gasto) / SUM(thruplays) ELSE NULL END AS custo_thruplay,
@@ -126,18 +152,21 @@ export async function getCorredorPolones(idLancamento: string, dataInicio?: stri
       AND (thruplays IS NOT NULL OR video_plays_3s IS NOT NULL)
       AND (${inicio}::date IS NULL OR data >= ${inicio}::date)
       AND (${fim}::date IS NULL OR data <= ${fim}::date)
-    GROUP BY campanha
+      ${filtroCategoria}
+    GROUP BY ${coluna}
     ORDER BY total_gasto DESC
   `
 }
 
 // Evolução diária do Hook Rate e Retenção 25→75%, só das 5 campanhas com mais gasto
-// (evita poluir o gráfico quando há muitas campanhas de teste).
-export async function getCorredorPolonesDiario(idLancamento: string) {
+// (evita poluir o gráfico quando há muitas campanhas de teste), filtrável por categoria.
+export async function getCorredorPolonesDiario(idLancamento: string, categoria?: CorredorPolonesCategoria) {
+  const filtroCategoria = filtroCategoriaSql(categoria)
   return prisma.$queryRaw<CorredorPolonesDiaRow[]>`
     WITH top_campanhas AS (
       SELECT campanha FROM trafego_meta
       WHERE id_lancamento = ${idLancamento} AND (thruplays IS NOT NULL OR video_plays_3s IS NOT NULL)
+        ${filtroCategoria}
       GROUP BY campanha ORDER BY SUM(total_gasto) DESC LIMIT 5
     )
     SELECT
