@@ -1,9 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenAI } from '@google/genai'
-import { getCorredorPolones } from '../../../../lib/db/trafego'
+import { getCorredorPolones, type CorredorPolonesCategoria, type CorredorPolonesNivel } from '../../../../lib/db/trafego'
+
+const LABEL_CATEGORIA: Record<string, string> = {
+  turbinamento: 'Turbinamento',
+  distribuicao: 'Distribuição',
+}
+const LABEL_NIVEL: Record<string, string> = {
+  campanha: 'campanha',
+  conjunto: 'conjunto de anúncios',
+  anuncio: 'anúncio',
+}
 
 export async function POST(req: NextRequest) {
-  const { id } = await req.json()
+  const { id, categoria, nivel, instrucao } = await req.json() as {
+    id?: string
+    categoria?: CorredorPolonesCategoria
+    nivel?: CorredorPolonesNivel
+    instrucao?: string
+  }
   if (!id) return NextResponse.json({ error: 'id obrigatório' }, { status: 400 })
 
   if (!process.env.GEMINI_API_KEY) {
@@ -11,9 +26,9 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const dados = await getCorredorPolones(id)
+    const dados = await getCorredorPolones(id, undefined, undefined, categoria, nivel ?? 'campanha')
     if (dados.length === 0) {
-      return NextResponse.json({ error: 'Sem dados de Corredor Polonês para este lançamento' }, { status: 404 })
+      return NextResponse.json({ error: 'Sem dados de Corredor Polonês para esse filtro' }, { status: 404 })
     }
 
     const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY })
@@ -30,19 +45,29 @@ export async function POST(req: NextRequest) {
       custo_vv95: d.custo_vv95,
     }))
 
-    const prompt = `Você é um analista de tráfego pago especializado no método "Corredor Polonês" (teste de retenção de vídeo em anúncios). Analise os dados abaixo de um lançamento e dê recomendações práticas e diretas em português.
+    const escopo = categoria
+      ? `Escopo: apenas campanhas de "${LABEL_CATEGORIA[categoria]}", agrupado por ${LABEL_NIVEL[nivel ?? 'campanha']}.`
+      : `Escopo: todas as campanhas de vídeo (Turbinamento e Distribuição juntas), agrupado por campanha.`
 
+    const pedidoUsuario = instrucao?.trim()
+      ? `\nO usuário pediu especificamente: "${instrucao.trim()}". Priorize responder exatamente isso antes de qualquer outra observação — não ignore o pedido nem substitua por uma análise genérica.\n`
+      : ''
+
+    const prompt = `Você é um analista de tráfego pago especializado no método "Corredor Polonês" (teste de retenção de vídeo em anúncios). Analise os dados abaixo e dê recomendações práticas e diretas em português.
+
+${escopo}
+${pedidoUsuario}
 Métricas: hook_rate = % de quem assistiu 3s do vídeo em relação às impressões (quanto maior, melhor o gancho inicial). retencao_25_75 = % de quem chegou em 75% do vídeo entre os que chegaram em 25% (mede se o vídeo "segura" a audiência). custo_vvXX = custo por visualização até XX% do vídeo.
 
-Dados por campanha/criativo (JSON):
+Dados (JSON):
 ${JSON.stringify(tabela, null, 2)}
-
+${instrucao?.trim() ? '' : `
 Estruture sua resposta em:
 1. Diagnóstico rápido (2-3 frases)
 2. Melhor e pior criativo, com o porquê
-3. Recomendações práticas (o que cortar, o que escalar, o que testar em seguida)
+3. Recomendações práticas (o que cortar, o que escalar, o que testar em seguida)`}
 
-Seja direto, sem enrolação, focado em ação.`
+Seja direto, sem enrolação, focado em ação. Não analise nada fora do escopo pedido acima.`
 
     const response = await client.models.generateContent({
       model: 'gemini-2.5-flash',

@@ -226,6 +226,8 @@ export default function TrafegoPage() {
   const [analiseIA, setAnaliseIA] = useState<string>('')
   const [carregandoIA, setCarregandoIA] = useState(false)
   const [erroIA, setErroIA] = useState<string>('')
+  const [escopoIA, setEscopoIA] = useState<'tudo' | 'turbinamento' | 'distribuicao'>('tudo')
+  const [instrucaoIA, setInstrucaoIA] = useState('')
 
   useEffect(() => { setColunasVisiveis(carregarColunasVisiveis()) }, [])
 
@@ -245,7 +247,12 @@ export default function TrafegoPage() {
       const res = await fetch('/api/trafego/analisar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: lancamentoId }),
+        body: JSON.stringify({
+          id: lancamentoId,
+          categoria: escopoIA === 'tudo' ? undefined : escopoIA,
+          nivel: escopoIA === 'distribuicao' ? nivelDistribuicao : undefined,
+          instrucao: instrucaoIA,
+        }),
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Erro ao gerar análise')
@@ -1030,15 +1037,44 @@ export default function TrafegoPage() {
       )}
 
       <div className="rounded-xl border border-violet-500/20 bg-violet-500/5 p-4 space-y-3">
-        <div className="flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-1.5">
-            <Sparkles size={13} className="text-violet-400" />
-            <p className="text-xs font-semibold text-violet-400 uppercase tracking-wider">Análise com IA</p>
-          </div>
+        <div className="flex items-center gap-1.5">
+          <Sparkles size={13} className="text-violet-400" />
+          <p className="text-xs font-semibold text-violet-400 uppercase tracking-wider">Análise com IA</p>
+        </div>
+
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[10px] text-gray-500 uppercase tracking-wider mr-1">Escopo:</span>
+          {([
+            ['tudo', 'Tudo'],
+            ['turbinamento', 'Turbinamento'],
+            ['distribuicao', `Distribuição (${nivelDistribuicao === 'campanha' ? 'Campanha' : nivelDistribuicao === 'conjunto' ? 'Conjunto' : 'Anúncio'})`],
+          ] as const).map(([valor, label]) => (
+            <button
+              key={valor}
+              onClick={() => setEscopoIA(valor)}
+              className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                escopoIA === valor
+                  ? 'bg-violet-500/20 border-violet-500/40 text-violet-300'
+                  : 'border-gray-700 text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={instrucaoIA}
+            onChange={e => setInstrucaoIA(e.target.value)}
+            placeholder='O que você quer saber? Ex: "qual desses anúncios devo escalar primeiro?"'
+            className="flex-1 rounded-lg border border-gray-700 bg-gray-800/80 px-3 py-1.5 text-xs text-gray-200 placeholder:text-gray-600"
+          />
           <button
             onClick={analisarComIA}
             disabled={carregandoIA || (corredorTurbinamento.length === 0 && corredorDistribuicao.length === 0)}
-            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-violet-500/40 text-violet-300 hover:bg-violet-500/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-violet-500/40 text-violet-300 hover:bg-violet-500/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
           >
             {carregandoIA ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
             {carregandoIA ? 'Analisando...' : analiseIA ? 'Analisar novamente' : 'Analisar'}
