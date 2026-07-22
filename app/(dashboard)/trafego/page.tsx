@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { BarChart2, TrendingDown, Users, Zap, Target, Bell, ShoppingCart, BadgeCheck, Sparkles, Loader2, RefreshCw } from 'lucide-react'
+import { BarChart2, TrendingDown, Users, Zap, Target, Bell, ShoppingCart, BadgeCheck, Sparkles, Loader2, RefreshCw, ArrowUp, ArrowDown, Minus } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -89,6 +89,30 @@ type CorredorPolonesRow = {
   custo_vv95: number | null
   hook_rate: number | null
   retencao_25_75: number | null
+}
+
+type PublicoResumoRow = {
+  publico_nome: string
+  data_atual: string
+  atual: number | null
+  semelhante: boolean
+  anterior: number | null
+}
+
+type PublicoEvolucaoRow = {
+  dia: string
+  publico_nome: string
+  tamanho_min: number | null
+  semelhante: boolean
+}
+
+// Grupo é o primeiro segmento do nome ("Funil_Meio | VV | ..." -> "Funil_Meio")
+function grupoPublico(nome: string) {
+  return nome.split('|')[0]?.trim() ?? nome
+}
+function labelPublico(nome: string) {
+  const partes = nome.split('|').map(p => p.trim())
+  return partes.slice(1).join(' | ') || nome
 }
 
 function hojeISO() {
@@ -181,7 +205,12 @@ export default function TrafegoPage() {
   const [filtroCampanha, setFiltro] = useState<string>('todos')
   const [dataInicio, setDataInicio] = useState('')
   const [dataFim, setDataFim]       = useState('')
-  const [aba, setAba] = useState<'captacao' | 'corredor'>('captacao')
+  const [aba, setAba] = useState<'captacao' | 'corredor' | 'publicos'>('captacao')
+  const [publicosResumo, setPublicosResumo] = useState<PublicoResumoRow[]>([])
+  const [publicosEvolucao, setPublicosEvolucao] = useState<PublicoEvolucaoRow[]>([])
+  const [carregandoPublicos, setCarregandoPublicos] = useState(false)
+  const [grupoPublicos, setGrupoPublicos] = useState<string>('todos')
+  const [mostrarSemelhantes, setMostrarSemelhantes] = useState(false)
   const [corredorTurbinamento, setCorredorTurbinamento] = useState<CorredorPolonesRow[]>([])
   const [corredorDistribuicao, setCorredorDistribuicao] = useState<CorredorPolonesRow[]>([])
   const [nivelDistribuicao, setNivelDistribuicao] = useState<'campanha' | 'conjunto' | 'anuncio'>('anuncio')
@@ -290,9 +319,30 @@ export default function TrafegoPage() {
     fetchCorredor()
   }, [aba, fetchCorredor])
 
+  const fetchPublicos = useCallback(async () => {
+    if (!lancamentoId) return
+    setCarregandoPublicos(true)
+    try {
+      const [r, e] = await Promise.all([
+        fetch(`/api/publicos?id=${lancamentoId}&view=resumo`).then(r => r.json()),
+        fetch(`/api/publicos?id=${lancamentoId}&view=evolucao`).then(r => r.json()),
+      ])
+      setPublicosResumo(Array.isArray(r) ? r : [])
+      setPublicosEvolucao(Array.isArray(e) ? e : [])
+    } finally {
+      setCarregandoPublicos(false)
+    }
+  }, [lancamentoId])
+
+  useEffect(() => {
+    if (aba !== 'publicos') return
+    fetchPublicos()
+  }, [aba, fetchPublicos])
+
   function atualizarDados() {
     fetchAll()
     if (aba === 'corredor') fetchCorredor()
+    if (aba === 'publicos') fetchPublicos()
   }
 
   function ordenarLinhas(linhas: CorredorPolonesRow[], campo: keyof CorredorPolonesRow, asc: boolean) {
@@ -316,6 +366,28 @@ export default function TrafegoPage() {
   const rankTurbinamento = rankearPorRetencao(corredorTurbinamento)
   const distribuicaoOrdenado = ordenarLinhas(corredorDistribuicao, ordenarPorD, ordemAscD)
   const rankDistribuicao = rankearPorRetencao(corredorDistribuicao)
+
+  // Públicos: agrupa por prefixo (Funil_Meio, Funil_Topo, ...) e filtra semelhantes por padrão
+  const gruposPublicos = ['todos', ...Array.from(new Set(publicosResumo.map(p => grupoPublico(p.publico_nome))))]
+  const publicosVisiveis = publicosResumo
+    .filter(p => mostrarSemelhantes || !p.semelhante)
+    .filter(p => grupoPublicos === 'todos' ? true : grupoPublico(p.publico_nome) === grupoPublicos)
+    .sort((a, b) => (b.atual ?? 0) - (a.atual ?? 0))
+
+  const evolucaoFiltrada = publicosEvolucao.filter(p =>
+    (mostrarSemelhantes || !p.semelhante) && (grupoPublicos === 'todos' || grupoPublico(p.publico_nome) === grupoPublicos)
+  )
+  const publicosDiasUnicos = Array.from(new Set(evolucaoFiltrada.map(p => p.dia))).sort()
+  const publicosNomesUnicos = Array.from(new Set(evolucaoFiltrada.map(p => p.publico_nome)))
+  const chartPublicos = publicosDiasUnicos.map(dia => {
+    const row: Record<string, string | number> = { dia: dia.slice(5) }
+    for (const nome of publicosNomesUnicos) {
+      const p = evolucaoFiltrada.find(x => x.dia === dia && x.publico_nome === nome)
+      if (p?.tamanho_min != null) row[nome] = p.tamanho_min
+    }
+    return row
+  })
+  const CORES_PUBLICOS = ['#10b981', '#6366f1', '#f59e0b', '#ec4899', '#14b8a6', '#f472b6', '#38bdf8', '#a3e635', '#fb923c', '#c084fc']
 
   function formatarValorColuna(campo: ColunaCorredor, valor: number | null) {
     if (valor == null) return '—'
@@ -516,7 +588,7 @@ export default function TrafegoPage() {
       {/* Abas */}
       <div className="flex items-center justify-between border-b border-gray-800 pb-px flex-wrap gap-2">
         <div className="flex gap-1.5">
-          {(['captacao', 'corredor'] as const).map(a => (
+          {(['captacao', 'corredor', 'publicos'] as const).map(a => (
             <button
               key={a}
               onClick={() => setAba(a)}
@@ -526,7 +598,7 @@ export default function TrafegoPage() {
                   : 'border-transparent text-gray-500 hover:text-gray-300'
               }`}
             >
-              {a === 'captacao' ? 'Captação' : 'Corredor Polonês'}
+              {a === 'captacao' ? 'Captação' : a === 'corredor' ? 'Corredor Polonês' : 'Públicos'}
             </button>
           ))}
         </div>
@@ -1037,6 +1109,131 @@ export default function TrafegoPage() {
         {!carregandoCorredor && renderTabelaCorredor(
           corredorDistribuicao, distribuicaoOrdenado, ordenarPorD, setOrdenarPorD, ordemAscD, setOrdemAscD, rankDistribuicao,
           nivelDistribuicao === 'campanha' ? 'Campanha' : nivelDistribuicao === 'conjunto' ? 'Conjunto' : 'Anúncio',
+        )}
+      </div>
+
+      </>)}
+
+      {lancamentoId && aba === 'publicos' && (<>
+
+      {/* Filtros de grupo e semelhantes */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {gruposPublicos.map(g => (
+            <button
+              key={g}
+              onClick={() => setGrupoPublicos(g)}
+              className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                grupoPublicos === g
+                  ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                  : 'border-gray-700 text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              {g === 'todos' ? 'Todos' : g}
+            </button>
+          ))}
+        </div>
+        <label className="flex items-center gap-1.5 text-xs text-gray-400 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={mostrarSemelhantes}
+            onChange={e => setMostrarSemelhantes(e.target.checked)}
+            className="accent-emerald-500"
+          />
+          Mostrar públicos semelhantes
+        </label>
+      </div>
+
+      {/* Evolução do tamanho dos públicos */}
+      {chartPublicos.length > 0 && (
+        <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Evolução do Tamanho dos Públicos</p>
+          <ResponsiveContainer width="100%" height={280}>
+            <LineChart data={chartPublicos} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+              <XAxis dataKey="dia" tick={{ fontSize: 10, fill: '#6b7280' }} />
+              <YAxis tick={{ fontSize: 10, fill: '#6b7280' }} tickFormatter={v => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : `${v}`} />
+              <Tooltip
+                contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 8 }}
+                labelStyle={{ color: '#9ca3af', fontSize: 11 }}
+                formatter={(val: number) => val.toLocaleString('pt-BR')}
+              />
+              <Legend wrapperStyle={{ fontSize: 9 }} />
+              {publicosNomesUnicos.map((nome, i) => (
+                <Line key={nome} type="monotone" dataKey={nome} name={labelPublico(nome)}
+                  stroke={CORES_PUBLICOS[i % CORES_PUBLICOS.length]} strokeWidth={2} dot={false} connectNulls />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {/* Tabela — snapshot atual */}
+      <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
+        <div className="mb-4">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Tamanho Atual dos Públicos</p>
+          <p className="text-[10px] text-gray-600 mt-0.5">Tamanho mínimo estimado pela Meta · variação vs. captura anterior</p>
+        </div>
+        {carregandoPublicos && (
+          <p className="py-8 text-center text-gray-500 text-xs">Carregando...</p>
+        )}
+        {!carregandoPublicos && publicosVisiveis.length === 0 && (
+          <p className="py-8 text-center text-gray-500 text-xs">
+            Nenhum público encontrado — verifique se a extração no n8n já está gravando em publicos_meta.
+          </p>
+        )}
+        {!carregandoPublicos && publicosVisiveis.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b border-gray-800">
+                  <th className="pb-2 text-left text-gray-400 font-medium">Público</th>
+                  <th className="pb-2 text-right text-gray-400 font-medium">Atual</th>
+                  <th className="pb-2 text-right text-gray-400 font-medium">Anterior</th>
+                  <th className="pb-2 text-right text-gray-400 font-medium">Variação</th>
+                  <th className="pb-2 text-right text-gray-400 font-medium">Atualizado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {publicosVisiveis.map((p, i) => {
+                  const variacao = p.atual != null && p.anterior != null && p.anterior > 0
+                    ? (p.atual - p.anterior) / p.anterior
+                    : null
+                  return (
+                    <tr key={i} className="border-b border-gray-800/60 hover:bg-gray-800/20">
+                      <td className="py-2.5 pr-4">
+                        <span className="text-gray-200 max-w-md truncate block" title={p.publico_nome}>
+                          {labelPublico(p.publico_nome)}
+                          {p.semelhante && <span className="ml-1.5 text-[10px] text-gray-600">(semelhante)</span>}
+                        </span>
+                      </td>
+                      <td className="py-2.5 text-right text-gray-100 font-medium tabular-nums">
+                        {p.atual != null ? p.atual.toLocaleString('pt-BR') : '—'}
+                      </td>
+                      <td className="py-2.5 text-right text-gray-500 tabular-nums">
+                        {p.anterior != null ? p.anterior.toLocaleString('pt-BR') : '—'}
+                      </td>
+                      <td className="py-2.5 text-right tabular-nums">
+                        {variacao == null ? (
+                          <span className="text-gray-600">—</span>
+                        ) : (
+                          <span className={`flex items-center justify-end gap-1 font-medium ${
+                            variacao > 0 ? 'text-emerald-400' : variacao < 0 ? 'text-red-400' : 'text-gray-500'
+                          }`}>
+                            {variacao > 0 ? <ArrowUp size={11} /> : variacao < 0 ? <ArrowDown size={11} /> : <Minus size={11} />}
+                            {Math.abs(variacao * 100).toFixed(1)}%
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-2.5 text-right text-gray-600 tabular-nums">
+                        {p.data_atual?.slice(5).split('-').reverse().join('/')}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 

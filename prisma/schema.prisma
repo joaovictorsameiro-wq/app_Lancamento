@@ -112,6 +112,18 @@ model trafego_meta {
   retencao_25_75       Float?
 }
 
+model publicos_meta {
+  unique_key    String    @id
+  id_lancamento String?
+  data          DateTime?
+  publico_id    String?
+  publico_nome  String?
+  tamanho_min   Int?
+  tamanho_max   Int?
+  semelhante    Boolean?  @default(false)
+  capturado_em  DateTime?
+}
+
 model leads {
   email              String
   id_lancamento      String
