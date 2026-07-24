@@ -179,6 +179,7 @@ const TIPO_CONFIG: Record<string, { label: string; color: string; bg: string; ic
   captacao:    { label: 'Captação',         color: 'text-blue-400',   bg: 'bg-blue-500/10 border-blue-500/20',   icon: Users },
   aquecimento: { label: 'Aquecimento',      color: 'text-orange-400', bg: 'bg-orange-500/10 border-orange-500/20', icon: TrendingDown },
   distribuicao:{ label: 'Distribuição',     color: 'text-teal-400',   bg: 'bg-teal-500/10 border-teal-500/20',   icon: BarChart2 },
+  atracao:     { label: 'Atração',          color: 'text-cyan-400',   bg: 'bg-cyan-500/10 border-cyan-500/20',   icon: Zap },
   lembrete:    { label: 'Lembrete Evento',  color: 'text-yellow-400', bg: 'bg-yellow-500/10 border-yellow-500/20', icon: Bell },
   remarketing: { label: 'Remarketing',      color: 'text-pink-400',   bg: 'bg-pink-500/10 border-pink-500/20',   icon: Target },
   venda:       { label: 'Venda/Carrinho',   color: 'text-emerald-400',bg: 'bg-emerald-500/10 border-emerald-500/20', icon: ShoppingCart },
@@ -556,7 +557,7 @@ export default function TrafegoPage() {
   const cplPQ     = leadsPQ > 0 ? gastoPQ / leadsPQ : 0
   const cplPF     = leadsPF > 0 ? gastoPF / leadsPF : 0
 
-  const tiposSecundarios = ['aquecimento', 'distribuicao', 'lembrete', 'remarketing', 'venda', 'outros']
+  const tiposSecundarios = ['aquecimento', 'atracao', 'distribuicao', 'lembrete', 'remarketing', 'venda', 'outros']
   const secundarios = tiposSecundarios
     .map(t => {
       const row = breakdown.find(r => r.tipo === t)
