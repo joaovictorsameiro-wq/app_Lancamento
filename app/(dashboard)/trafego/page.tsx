@@ -115,6 +115,13 @@ function labelPublico(nome: string) {
   return partes.slice(1).join(' | ') || nome
 }
 
+// Formata uma data ISO ("2026-07-21" ou "2026-07-21T00:00:00.000Z") como "DD/MM"
+function diaCurto(dia: string) {
+  const [, mes, resto] = dia.slice(0, 10).split('-')
+  const diaNum = resto?.slice(0, 2)
+  return mes && diaNum ? `${diaNum}/${mes}` : dia
+}
+
 function hojeISO() {
   return new Date().toISOString().slice(0, 10)
 }
@@ -387,7 +394,7 @@ export default function TrafegoPage() {
   const publicosDiasUnicos = Array.from(new Set(evolucaoFiltrada.map(p => p.dia))).sort()
   const publicosNomesUnicos = Array.from(new Set(evolucaoFiltrada.map(p => p.publico_nome)))
   const chartPublicos = publicosDiasUnicos.map(dia => {
-    const row: Record<string, string | number> = { dia: dia.slice(5) }
+    const row: Record<string, string | number> = { dia: diaCurto(dia) }
     for (const nome of publicosNomesUnicos) {
       const p = evolucaoFiltrada.find(x => x.dia === dia && x.publico_nome === nome)
       if (p?.tamanho_min != null) row[nome] = p.tamanho_min
@@ -514,7 +521,7 @@ export default function TrafegoPage() {
   const campanhasDiario = Array.from(new Set(corredorDiario.map(d => d.campanha)))
   const diasUnicos = Array.from(new Set(corredorDiario.map(d => d.dia))).sort()
   const chartHookRate = diasUnicos.map(dia => {
-    const row: Record<string, string | number> = { dia: dia.slice(5) }
+    const row: Record<string, string | number> = { dia: diaCurto(dia) }
     for (const camp of campanhasDiario) {
       const d = corredorDiario.find(x => x.dia === dia && x.campanha === camp)
       if (d?.hook_rate != null) row[camp] = Number((d.hook_rate * 100).toFixed(1))
@@ -522,7 +529,7 @@ export default function TrafegoPage() {
     return row
   })
   const chartRetencao = diasUnicos.map(dia => {
-    const row: Record<string, string | number> = { dia: dia.slice(5) }
+    const row: Record<string, string | number> = { dia: diaCurto(dia) }
     for (const camp of campanhasDiario) {
       const d = corredorDiario.find(x => x.dia === dia && x.campanha === camp)
       if (d?.retencao_25_75 != null) row[camp] = Number((d.retencao_25_75 * 100).toFixed(1))
@@ -564,7 +571,7 @@ export default function TrafegoPage() {
     : campanhas.filter(c => c.tipo === filtroCampanha)
 
   const chartData = diario.map(d => ({
-    dia: d.dia?.slice(5), // MM-DD
+    dia: d.dia ? diaCurto(d.dia) : d.dia,
     'Gasto Total': Number(d.gasto?.toFixed(0)),
     'Gasto Captação': Number(d.gasto_captacao?.toFixed(0)),
     'Leads': d.leads,
@@ -1226,7 +1233,7 @@ export default function TrafegoPage() {
                   <th className="pb-2 text-left text-gray-400 font-medium sticky left-0 bg-gray-900">Público</th>
                   {publicosDiasUnicos.map(dia => (
                     <th key={dia} className="pb-2 text-right text-gray-500 font-medium whitespace-nowrap px-2">
-                      {dia.slice(5).split('-').reverse().join('/')}
+                      {diaCurto(dia)}
                     </th>
                   ))}
                   <th className="pb-2 text-right text-gray-400 font-medium pl-4">Atual</th>
