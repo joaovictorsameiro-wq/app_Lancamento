@@ -1204,11 +1204,11 @@ export default function TrafegoPage() {
         </div>
       )}
 
-      {/* Tabela — snapshot atual */}
+      {/* Tabela — histórico diário */}
       <div className="rounded-xl border border-gray-800 bg-gray-900/50 p-4">
         <div className="mb-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Tamanho Atual dos Públicos</p>
-          <p className="text-[10px] text-gray-600 mt-0.5">Tamanho mínimo estimado pela Meta · variação vs. captura anterior</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Tamanho dos Públicos por Dia</p>
+          <p className="text-[10px] text-gray-600 mt-0.5">Tamanho mínimo estimado pela Meta · Atual/Anterior/Variação comparam as duas últimas capturas</p>
         </div>
         {carregandoPublicos && (
           <p className="py-8 text-center text-gray-500 text-xs">Carregando...</p>
@@ -1223,11 +1223,15 @@ export default function TrafegoPage() {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-gray-800">
-                  <th className="pb-2 text-left text-gray-400 font-medium">Público</th>
-                  <th className="pb-2 text-right text-gray-400 font-medium">Atual</th>
+                  <th className="pb-2 text-left text-gray-400 font-medium sticky left-0 bg-gray-900">Público</th>
+                  {publicosDiasUnicos.map(dia => (
+                    <th key={dia} className="pb-2 text-right text-gray-500 font-medium whitespace-nowrap px-2">
+                      {dia.slice(5).split('-').reverse().join('/')}
+                    </th>
+                  ))}
+                  <th className="pb-2 text-right text-gray-400 font-medium pl-4">Atual</th>
                   <th className="pb-2 text-right text-gray-400 font-medium">Anterior</th>
                   <th className="pb-2 text-right text-gray-400 font-medium">Variação</th>
-                  <th className="pb-2 text-right text-gray-400 font-medium">Atualizado</th>
                 </tr>
               </thead>
               <tbody>
@@ -1237,13 +1241,21 @@ export default function TrafegoPage() {
                     : null
                   return (
                     <tr key={i} className="border-b border-gray-800/60 hover:bg-gray-800/20">
-                      <td className="py-2.5 pr-4">
+                      <td className="py-2.5 pr-4 sticky left-0 bg-gray-900/95">
                         <span className="text-gray-200 max-w-md truncate block" title={p.publico_nome}>
                           {labelPublico(p.publico_nome)}
                           {p.semelhante && <span className="ml-1.5 text-[10px] text-gray-600">(semelhante)</span>}
                         </span>
                       </td>
-                      <td className="py-2.5 text-right text-gray-100 font-medium tabular-nums">
+                      {publicosDiasUnicos.map(dia => {
+                        const valor = evolucaoFiltrada.find(x => x.dia === dia && x.publico_nome === p.publico_nome)?.tamanho_min
+                        return (
+                          <td key={dia} className="py-2.5 text-right text-gray-400 tabular-nums px-2 whitespace-nowrap">
+                            {valor != null ? valor.toLocaleString('pt-BR') : '—'}
+                          </td>
+                        )
+                      })}
+                      <td className="py-2.5 text-right text-gray-100 font-medium tabular-nums pl-4">
                         {p.atual != null ? p.atual.toLocaleString('pt-BR') : '—'}
                       </td>
                       <td className="py-2.5 text-right text-gray-500 tabular-nums">
@@ -1260,9 +1272,6 @@ export default function TrafegoPage() {
                             {Math.abs(variacao * 100).toFixed(1)}%
                           </span>
                         )}
-                      </td>
-                      <td className="py-2.5 text-right text-gray-600 tabular-nums">
-                        {p.data_atual?.slice(5).split('-').reverse().join('/')}
                       </td>
                     </tr>
                   )
