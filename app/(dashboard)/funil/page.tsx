@@ -4,7 +4,7 @@ import { useState, useRef, useCallback, useEffect } from 'react'
 import {
   GitFork, Plus, Save, Trash2, Layers, Type,
   RefreshCw, Loader2, Check, X,
-  BarChart2,
+  BarChart2, Link2,
 } from 'lucide-react'
 import LancamentoSelector from '../../../components/lancamento-selector'
 
@@ -23,9 +23,66 @@ interface FunnelNode {
   notas?: string
   fonte?: 'manual' | 'banco'
 }
-interface FunnelEdge { id: string; sourceId: string; targetId: string; taxaConversao?: number }
+type EdgeFormula = 'target_por_source' | 'source_por_target'
+type EdgeFormato = 'percent' | 'moeda' | 'numero' | 'x'
+interface FunnelEdge {
+  id: string; sourceId: string; targetId: string
+  taxaConversao?: number // legado — mantido só pra funis antigos que não têm `formato`
+  label?: string; formula?: EdgeFormula; multiplicador?: number; formato?: EdgeFormato
+}
 interface FunnelRecord { id: string; lancamento: string | null; nome: string; status: string; nodes: FunnelNode[]; edges: FunnelEdge[]; updated_at: string }
 interface Metrica { categoria: string; key: string; label: string; valor: number; unidade: string; cor: string }
+
+// Calcula o valor exibido numa ligação entre dois nós
+function calcularEdge(edge: FunnelEdge, nodes: FunnelNode[]): { valor: number | null; label: string; formato: EdgeFormato } {
+  const src = nodes.find(n => n.id === edge.sourceId)
+  const tgt = nodes.find(n => n.id === edge.targetId)
+  if (!src || !tgt || src.metrica == null || tgt.metrica == null) {
+    return { valor: null, label: edge.label || 'Taxa', formato: edge.formato ?? 'percent' }
+  }
+
+  // Modo legado: ligações antigas sem `formato` definido mantêm o comportamento original
+  if (!edge.formato) {
+    if (src.metrica > 0 && src.unidade !== 'R$' && tgt.unidade !== 'R$') {
+      return { valor: +((tgt.metrica / src.metrica) * 100).toFixed(2), label: edge.label || 'Taxa', formato: 'percent' }
+    }
+    return { valor: null, label: edge.label || 'Taxa', formato: 'percent' }
+  }
+
+  const formula = edge.formula ?? 'target_por_source'
+  const mult = edge.multiplicador ?? 1
+  const numerador = formula === 'source_por_target' ? src.metrica : tgt.metrica
+  const denominador = formula === 'source_por_target' ? tgt.metrica : src.metrica
+  if (!denominador) return { valor: null, label: edge.label || 'Taxa', formato: edge.formato }
+  return { valor: (numerador / denominador) * mult, label: edge.label || 'Taxa', formato: edge.formato }
+}
+
+function formatarEdgeValor(valor: number | null, formato: EdgeFormato) {
+  if (valor == null) return '—'
+  if (formato === 'moeda') return `R$ ${valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  if (formato === 'x') return `${valor.toFixed(2)}x`
+  if (formato === 'numero') return valor.toLocaleString('pt-BR', { maximumFractionDigits: 1 })
+  return `${valor.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`
+}
+
+const FORMULA_OPTIONS: { value: EdgeFormula; label: string }[] = [
+  { value: 'target_por_source', label: 'Destino ÷ Origem' },
+  { value: 'source_por_target', label: 'Origem ÷ Destino' },
+]
+const FORMATO_OPTIONS: { value: EdgeFormato; label: string }[] = [
+  { value: 'percent', label: 'Percentual (%)' },
+  { value: 'moeda', label: 'Moeda (R$)' },
+  { value: 'numero', label: 'Número' },
+  { value: 'x', label: 'Multiplicador (x)' },
+]
+const PRESETS_EDGE: { label: string; formula: EdgeFormula; multiplicador: number; formato: EdgeFormato }[] = [
+  { label: 'CTR',          formula: 'target_por_source', multiplicador: 100,  formato: 'percent' },
+  { label: 'Connect Rate', formula: 'target_por_source', multiplicador: 100,  formato: 'percent' },
+  { label: 'Tx Conversão', formula: 'target_por_source', multiplicador: 100,  formato: 'percent' },
+  { label: 'CPM',          formula: 'source_por_target', multiplicador: 1000, formato: 'moeda' },
+  { label: 'CPL',          formula: 'source_por_target', multiplicador: 1,    formato: 'moeda' },
+  { label: 'Ticket Médio', formula: 'source_por_target', multiplicador: 1,    formato: 'moeda' },
+]
 
 // ─── Toast ─────────────────────────────────────────────────────
 function useToast() {
@@ -38,9 +95,10 @@ function useToast() {
 }
 
 // ─── Canvas Node ───────────────────────────────────────────────
-function CanvasNode({ node, selected, onSelect, onDrag }: {
+function CanvasNode({ node, selected, onSelect, onDrag, onStartConnect }: {
   node: FunnelNode; selected: boolean
   onSelect: (id: string) => void; onDrag: (id: string, x: number, y: number) => void
+  onStartConnect: (id: string, clientX: number, clientY: number) => void
 }) {
   const dragStart = useRef<{ mx: number; my: number; nx: number; ny: number } | null>(null)
   const didDrag = useRef(false)
@@ -95,13 +153,14 @@ function CanvasNode({ node, selected, onSelect, onDrag }: {
 
   return (
     <div
-      className={`absolute rounded-xl border-2 flex flex-col overflow-hidden cursor-grab select-none transition-shadow
+      data-node-id={node.id}
+      className={`group absolute rounded-xl border-2 flex flex-col overflow-visible cursor-grab select-none transition-shadow
         ${selected ? 'border-purple-500 shadow-lg shadow-purple-500/20' : 'border-gray-700 hover:border-gray-500'}`}
       style={{ left: node.x, top: node.y, width: node.width, height: node.height, background: '#151b2d' }}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
     >
-      <div className="h-1 w-full shrink-0" style={{ backgroundColor: node.cor }} />
+      <div className="h-1 w-full shrink-0 rounded-t-[10px] overflow-hidden" style={{ backgroundColor: node.cor }} />
       <div className="flex-1 px-3 py-2 flex flex-col justify-between min-h-0">
         <div className="flex items-center justify-between gap-1">
           <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider truncate">{node.titulo}</p>
@@ -115,6 +174,18 @@ function CanvasNode({ node, selected, onSelect, onDrag }: {
             <p className="text-[10px] text-gray-500">{node.unidade}</p>
           )}
         </div>
+      </div>
+
+      {/* Handle de conexão — arraste até outro card pra criar uma ligação */}
+      <div
+        title="Arraste para conectar a outro card"
+        className="absolute -right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full border-2 border-gray-600 bg-gray-900
+          opacity-0 group-hover:opacity-100 hover:!border-purple-400 hover:bg-purple-500/20 transition-all cursor-crosshair
+          flex items-center justify-center z-10"
+        onMouseDown={e => { e.stopPropagation(); onStartConnect(node.id, e.clientX, e.clientY) }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="w-1.5 h-1.5 rounded-full bg-gray-500" />
       </div>
     </div>
   )
@@ -230,6 +301,98 @@ function MetricasPicker({ lancamentoId, onAdd, onClose }: {
   )
 }
 
+// ─── Editor de Ligação ─────────────────────────────────────────
+function EdgeEditor({ edge, srcNome, tgtNome, onUpdate, onDelete, onClose }: {
+  edge: FunnelEdge; srcNome: string; tgtNome: string
+  onUpdate: (id: string, data: Partial<FunnelEdge>) => void
+  onDelete: (id: string) => void
+  onClose: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div className="w-[360px] rounded-2xl border border-gray-700 bg-gray-900 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between p-4 border-b border-gray-800">
+          <div>
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <Link2 size={14} className="text-purple-400" /> Editar ligação
+            </h3>
+            <p className="text-xs text-gray-500 mt-0.5 truncate">{srcNome} → {tgtNome}</p>
+          </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-300"><X size={16} /></button>
+        </div>
+
+        <div className="p-4 space-y-3">
+          <div>
+            <label className="text-[10px] text-gray-500 block mb-1">Atalhos</label>
+            <div className="flex flex-wrap gap-1.5">
+              {PRESETS_EDGE.map(p => (
+                <button
+                  key={p.label}
+                  onClick={() => onUpdate(edge.id, { label: p.label, formula: p.formula, multiplicador: p.multiplicador, formato: p.formato })}
+                  className="text-[10px] px-2 py-1 rounded-full border border-gray-700 text-gray-400 hover:border-purple-500/50 hover:text-purple-300 transition-colors"
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[10px] text-gray-500 block mb-1">Rótulo</label>
+            <input
+              value={edge.label ?? ''}
+              onChange={e => onUpdate(edge.id, { label: e.target.value })}
+              placeholder="Ex: CTR, CPM, Connect Rate..."
+              className="w-full rounded bg-gray-800 border border-gray-700 px-2 py-1.5 text-xs text-gray-200 outline-none focus:border-purple-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-[10px] text-gray-500 block mb-1">Fórmula</label>
+              <select
+                value={edge.formula ?? 'target_por_source'}
+                onChange={e => onUpdate(edge.id, { formula: e.target.value as EdgeFormula })}
+                className="w-full rounded bg-gray-800 border border-gray-700 px-2 py-1.5 text-xs text-gray-200 outline-none focus:border-purple-500"
+              >
+                {FORMULA_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-[10px] text-gray-500 block mb-1">Formato</label>
+              <select
+                value={edge.formato ?? 'percent'}
+                onChange={e => onUpdate(edge.id, { formato: e.target.value as EdgeFormato })}
+                className="w-full rounded bg-gray-800 border border-gray-700 px-2 py-1.5 text-xs text-gray-200 outline-none focus:border-purple-500"
+              >
+                {FORMATO_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[10px] text-gray-500 block mb-1">Multiplicador</label>
+            <input
+              type="number"
+              value={edge.multiplicador ?? 1}
+              onChange={e => onUpdate(edge.id, { multiplicador: Number(e.target.value) })}
+              className="w-full rounded bg-gray-800 border border-gray-700 px-2 py-1.5 text-xs text-gray-200 outline-none focus:border-purple-500"
+            />
+            <p className="text-[10px] text-gray-600 mt-1">100 pra %, 1000 pra CPM, 1 pra valores diretos (CPL, ticket médio...)</p>
+          </div>
+
+          <button
+            onClick={() => { onDelete(edge.id); onClose() }}
+            className="w-full flex items-center justify-center gap-1.5 rounded-lg text-xs text-red-400 hover:bg-red-500/10 py-2 transition-colors border border-red-500/20"
+          >
+            <Trash2 size={11} /> Remover ligação
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main Page ─────────────────────────────────────────────────
 export default function FunilPage() {
   const [funnels, setFunnels] = useState<FunnelRecord[]>([])
@@ -244,7 +407,52 @@ export default function FunilPage() {
   const [novoNome, setNovoNome] = useState('')
   const [criando, setCriando] = useState(false)
   const [showPicker, setShowPicker] = useState(false)
+  const [connecting, setConnecting] = useState<{ sourceId: string; x: number; y: number } | null>(null)
+  const [edgePopoverId, setEdgePopoverId] = useState<string | null>(null)
+  const canvasRef = useRef<HTMLDivElement>(null)
   const { msg: toast, show: showToast } = useToast()
+
+  const toCanvasCoords = (clientX: number, clientY: number) => {
+    const el = canvasRef.current
+    if (!el) return { x: 0, y: 0 }
+    const rect = el.getBoundingClientRect()
+    return { x: clientX - rect.left + el.scrollLeft, y: clientY - rect.top + el.scrollTop }
+  }
+
+  const criarEdge = useCallback((sourceId: string, targetId: string) => {
+    setEdges(prev => {
+      if (prev.some(e => e.sourceId === sourceId && e.targetId === targetId)) return prev
+      const id = `e${Date.now()}`
+      setTimeout(() => setEdgePopoverId(id), 0)
+      return [...prev, { id, sourceId, targetId, label: 'Taxa', formula: 'target_por_source', multiplicador: 100, formato: 'percent' }]
+    })
+  }, [])
+
+  const handleStartConnect = useCallback((sourceId: string, clientX: number, clientY: number) => {
+    setConnecting({ sourceId, ...toCanvasCoords(clientX, clientY) })
+    const onMove = (ev: MouseEvent) => {
+      setConnecting(prev => prev ? { ...prev, ...toCanvasCoords(ev.clientX, ev.clientY) } : prev)
+    }
+    const onUp = (ev: MouseEvent) => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      const el = document.elementFromPoint(ev.clientX, ev.clientY)
+      const targetEl = el?.closest('[data-node-id]') as HTMLElement | null
+      const targetId = targetEl?.dataset.nodeId
+      setConnecting(null)
+      if (targetId && targetId !== sourceId) criarEdge(sourceId, targetId)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }, [criarEdge])
+
+  const atualizarEdge = useCallback((id: string, data: Partial<FunnelEdge>) => {
+    setEdges(prev => prev.map(e => e.id === id ? { ...e, ...data } : e))
+  }, [])
+
+  const removerEdge = useCallback((id: string) => {
+    setEdges(prev => prev.filter(e => e.id !== id))
+  }, [])
 
   const carregarFunnels = useCallback(async () => {
     setLoadingFunnels(true)
@@ -373,14 +581,8 @@ export default function FunilPage() {
     setSelectedId(null)
   }
 
-  const edgesComTaxa = edges.map(edge => {
-    const src = nodes.find(n => n.id === edge.sourceId)
-    const tgt = nodes.find(n => n.id === edge.targetId)
-    if (src?.metrica && tgt?.metrica && src.metrica > 0 && src.unidade !== 'R$' && tgt.unidade !== 'R$') {
-      return { ...edge, taxaConversao: +((tgt.metrica / src.metrica) * 100).toFixed(1) }
-    }
-    return edge
-  })
+  const edgesComCalculo = edges.map(edge => ({ edge, ...calcularEdge(edge, nodes) }))
+  const edgePopover = edgePopoverId ? edges.find(e => e.id === edgePopoverId) : null
 
   const selectedNode = nodes.find(n => n.id === selectedId)
 
@@ -585,6 +787,7 @@ export default function FunilPage() {
 
         {/* Canvas area */}
         <div
+          ref={canvasRef}
           className="flex-1 relative overflow-auto bg-[#0c1018] cursor-default"
           style={{ backgroundImage: 'radial-gradient(circle, #1e2535 1px, transparent 1px)', backgroundSize: '24px 24px' }}
           onClick={() => setSelectedId(null)}
@@ -595,7 +798,7 @@ export default function FunilPage() {
                 <polygon points="0 0, 8 3, 0 6" fill="#4b5563" />
               </marker>
             </defs>
-            {edgesComTaxa.map(edge => {
+            {edgesComCalculo.map(({ edge }) => {
               const src = nodes.find(n => n.id === edge.sourceId)
               const tgt = nodes.find(n => n.id === edge.targetId)
               if (!src || !tgt) return null
@@ -603,24 +806,48 @@ export default function FunilPage() {
               const x2 = tgt.x;             const y2 = tgt.y + tgt.height / 2
               const mx = (x1 + x2) / 2
               return (
-                <g key={edge.id}>
-                  <path d={`M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`}
-                    stroke="#374151" strokeWidth="1.5" fill="none" markerEnd="url(#arrow)" />
-                  {edge.taxaConversao != null && (
-                    <text x={mx} y={Math.min(y1, y2) - 6} fill="#6b7280" fontSize="11" textAnchor="middle" fontFamily="monospace">
-                      {edge.taxaConversao.toFixed(1)}%
-                    </text>
-                  )}
-                </g>
+                <path key={edge.id} d={`M ${x1} ${y1} C ${mx} ${y1}, ${mx} ${y2}, ${x2} ${y2}`}
+                  stroke="#374151" strokeWidth="1.5" fill="none" markerEnd="url(#arrow)" />
               )
             })}
+            {connecting && (() => {
+              const src = nodes.find(n => n.id === connecting.sourceId)
+              if (!src) return null
+              const x1 = src.x + src.width; const y1 = src.y + src.height / 2
+              return (
+                <path d={`M ${x1} ${y1} L ${connecting.x} ${connecting.y}`}
+                  stroke="#a855f7" strokeWidth="1.5" strokeDasharray="4 3" fill="none" />
+              )
+            })()}
           </svg>
 
           <div className="absolute inset-0" style={{ minWidth: 1400, minHeight: 700 }}>
             {nodes.map(node => (
               <CanvasNode key={node.id} node={node} selected={selectedId === node.id}
-                onSelect={setSelectedId} onDrag={handleDrag} />
+                onSelect={setSelectedId} onDrag={handleDrag} onStartConnect={handleStartConnect} />
             ))}
+
+            {/* Chips com o valor calculado de cada ligação (CTR, CPM, Connect Rate...) */}
+            {edgesComCalculo.map(({ edge, valor, label, formato }) => {
+              const src = nodes.find(n => n.id === edge.sourceId)
+              const tgt = nodes.find(n => n.id === edge.targetId)
+              if (!src || !tgt) return null
+              const x1 = src.x + src.width; const y1 = src.y + src.height / 2
+              const x2 = tgt.x;             const y2 = tgt.y + tgt.height / 2
+              const mx = (x1 + x2) / 2; const my = (y1 + y2) / 2
+              return (
+                <button
+                  key={edge.id}
+                  onClick={e => { e.stopPropagation(); setEdgePopoverId(edge.id) }}
+                  className="absolute -translate-x-1/2 -translate-y-1/2 z-10 flex items-center gap-1.5 rounded-full border border-gray-700 bg-gray-900/95 px-2.5 py-1 text-[10px] hover:border-purple-500/60 transition-colors shadow"
+                  style={{ left: mx, top: my }}
+                >
+                  <span className="text-gray-500 uppercase tracking-wide">{label}</span>
+                  <span className="text-white font-semibold tabular-nums">{formatarEdgeValor(valor, formato)}</span>
+                </button>
+              )
+            })}
+
             {nodes.length === 0 && (
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
                 <GitFork size={32} className="text-gray-700 mb-3" />
@@ -631,9 +858,26 @@ export default function FunilPage() {
                 </p>
               </div>
             )}
+            {nodes.length > 1 && (
+              <p className="absolute bottom-3 left-3 text-[10px] text-gray-600 pointer-events-none">
+                Passe o mouse na borda direita de um card e arraste até outro pra ligar — clique na ligação pra configurar o rótulo (CPM, CTR, Connect Rate...)
+              </p>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Editor de ligação */}
+      {edgePopover && (
+        <EdgeEditor
+          edge={edgePopover}
+          srcNome={nodes.find(n => n.id === edgePopover.sourceId)?.titulo ?? '?'}
+          tgtNome={nodes.find(n => n.id === edgePopover.targetId)?.titulo ?? '?'}
+          onUpdate={atualizarEdge}
+          onDelete={removerEdge}
+          onClose={() => setEdgePopoverId(null)}
+        />
+      )}
 
       {/* Modal picker de métricas */}
       {showPicker && (
