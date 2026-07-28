@@ -478,14 +478,14 @@ export default function TrafegoPage() {
           </div>
         )}
         {rows.length > 0 && (
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full text-xs">
+          <div className="hidden md:block overflow-x-auto rounded-lg border" style={{ borderColor: 'var(--border)' }}>
+            <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-800">
-                  <th className="pb-2 text-left text-gray-400 font-medium w-8">#</th>
-                  <th className="pb-2 text-left text-gray-400 font-medium">{colunaLabel}</th>
+                <tr className="tbl-thead-row">
+                  <th className="tbl-th w-10">#</th>
+                  <th className="tbl-th">{colunaLabel}</th>
                   {colunas.map(col => (
-                    <th key={col.campo} className="pb-2 text-right text-gray-400 font-medium cursor-pointer hover:text-gray-200 select-none"
+                    <th key={col.campo} className="tbl-th tbl-th-right cursor-pointer select-none hover:text-[var(--text-1)] transition-colors"
                       onClick={() => alternar(col.campo)}>
                       {col.label}{ordenarPor === col.campo ? (ordemAsc ? ' ▲' : ' ▼') : ''}
                     </th>
@@ -497,13 +497,13 @@ export default function TrafegoPage() {
                   const posicao = rank.get(c.campanha) ?? null
                   const medalha = posicao === 1 ? '🥇' : posicao === 2 ? '🥈' : posicao === 3 ? '🥉' : null
                   return (
-                    <tr key={i} className="border-b border-gray-800/60 hover:bg-gray-800/20">
-                      <td className="py-2.5 pr-2 text-gray-500 tabular-nums">{medalha ?? posicao}</td>
-                      <td className="py-2.5 pr-4">
-                        <span className="text-gray-200 max-w-xs truncate block" title={c.campanha}>{c.campanha}</span>
+                    <tr key={i} className="tbl-row">
+                      <td className="tbl-td tabular-nums">{medalha ?? posicao}</td>
+                      <td className="tbl-td tbl-td-strong">
+                        <span className="max-w-xs truncate block" title={c.campanha}>{c.campanha}</span>
                       </td>
                       {colunas.map(col => (
-                        <td key={col.campo} className={`py-2.5 text-right tabular-nums ${corColuna(col.campo, c[col.campo] as number | null)}`}>
+                        <td key={col.campo} className={`tbl-td text-right tabular-nums font-medium ${corColuna(col.campo, c[col.campo] as number | null)}`}>
                           {formatarValorColuna(col.campo, c[col.campo] as number | null)}
                         </td>
                       ))}
@@ -800,58 +800,55 @@ export default function TrafegoPage() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+        <div className="overflow-x-auto rounded-lg border" style={{ borderColor: 'var(--border)' }}>
+          <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-800">
-                <th className="pb-2 text-left text-gray-400 font-medium">Campanha</th>
-                <th className="pb-2 text-left text-gray-400 font-medium">Tipo</th>
-                <th className="pb-2 text-right text-gray-400 font-medium">Gasto</th>
-                <th className="pb-2 text-right text-gray-400 font-medium">Leads</th>
-                <th className="pb-2 text-right text-gray-400 font-medium">CPL</th>
-                <th className="pb-2 text-right text-gray-400 font-medium">CTR</th>
-                <th className="pb-2 text-right text-gray-400 font-medium">CPM</th>
-                <th className="pb-2 text-right text-gray-400 font-medium">Impr.</th>
+              <tr className="tbl-thead-row">
+                <th className="tbl-th">Campanha</th>
+                <th className="tbl-th">Tipo</th>
+                <th className="tbl-th tbl-th-right">Gasto</th>
+                <th className="tbl-th tbl-th-right">Leads</th>
+                <th className="tbl-th tbl-th-right">CPL</th>
+                <th className="tbl-th tbl-th-right">CTR</th>
+                <th className="tbl-th tbl-th-right">CPM</th>
+                <th className="tbl-th tbl-th-right">Impr.</th>
               </tr>
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={8} className="py-8 text-center text-gray-500">Carregando...</td></tr>
+                <tr><td colSpan={8} className="tbl-td py-8 text-center">Carregando...</td></tr>
               )}
               {!loading && campanhasFiltradas.length === 0 && (
-                <tr><td colSpan={8} className="py-8 text-center text-gray-500">Nenhuma campanha encontrada</td></tr>
+                <tr><td colSpan={8} className="tbl-td py-8 text-center">Nenhuma campanha encontrada</td></tr>
               )}
               {campanhasFiltradas.map((c, i) => (
-                <tr key={i} className="border-b border-gray-800/60 hover:bg-gray-800/20">
-                  <td className="py-2.5 pr-4">
-                    <span
-                      className="text-gray-200 max-w-xs truncate block cursor-help"
-                      title={c.campanha}
-                    >
+                <tr key={i} className="tbl-row">
+                  <td className="tbl-td tbl-td-strong">
+                    <span className="max-w-xs truncate block cursor-help" title={c.campanha}>
                       {c.campanha}
                     </span>
                   </td>
-                  <td className="py-2.5 pr-4">
+                  <td className="tbl-td">
                     <span className={tipoBadgeClass(c.tipo)}>{tipoLabel(c.tipo)}</span>
                   </td>
-                  <td className="py-2.5 text-right text-gray-200 tabular-nums">{fmt_currency(c.gasto)}</td>
-                  <td className="py-2.5 text-right tabular-nums">
+                  <td className="tbl-td text-right tabular-nums tbl-td-strong">{fmt_currency(c.gasto)}</td>
+                  <td className="tbl-td text-right tabular-nums">
                     {c.leads > 0
-                      ? <span className="text-emerald-400 font-medium">{c.leads.toLocaleString('pt-BR')}</span>
+                      ? <span className="text-emerald-400 font-semibold">{c.leads.toLocaleString('pt-BR')}</span>
                       : <span className="text-gray-600">—</span>}
                   </td>
-                  <td className="py-2.5 text-right tabular-nums">
+                  <td className="tbl-td text-right tabular-nums">
                     {c.cpl != null
-                      ? <span className="text-blue-400">{fmt_currency(c.cpl)}</span>
+                      ? <span className="text-blue-400 font-medium">{fmt_currency(c.cpl)}</span>
                       : <span className="text-gray-600">—</span>}
                   </td>
-                  <td className="py-2.5 text-right text-gray-400 tabular-nums">
+                  <td className="tbl-td text-right tabular-nums">
                     {c.ctr ? `${Number(c.ctr).toFixed(2)}%` : '—'}
                   </td>
-                  <td className="py-2.5 text-right text-gray-400 tabular-nums">
+                  <td className="tbl-td text-right tabular-nums">
                     {c.cpm ? fmt_currency(c.cpm) : '—'}
                   </td>
-                  <td className="py-2.5 text-right text-gray-500 tabular-nums">
+                  <td className="tbl-td text-right tabular-nums">
                     {c.impressoes > 0 ? `${(c.impressoes / 1000).toFixed(0)}k` : '—'}
                   </td>
                 </tr>
@@ -859,12 +856,12 @@ export default function TrafegoPage() {
             </tbody>
             {campanhasFiltradas.length > 0 && (
               <tfoot>
-                <tr className="border-t border-gray-700">
-                  <td className="pt-2 text-gray-400 font-medium" colSpan={2}>Total filtrado</td>
-                  <td className="pt-2 text-right text-white font-medium tabular-nums">
+                <tr className="tbl-foot-row">
+                  <td className="tbl-foot-td" colSpan={2}>Total filtrado</td>
+                  <td className="tbl-foot-td text-right tabular-nums" style={{ color: 'var(--text-1)' }}>
                     {fmt_currency(campanhasFiltradas.reduce((s, c) => s + c.gasto, 0))}
                   </td>
-                  <td className="pt-2 text-right text-emerald-400 font-medium tabular-nums">
+                  <td className="tbl-foot-td text-right tabular-nums text-emerald-600">
                     {campanhasFiltradas.reduce((s, c) => s + c.leads, 0).toLocaleString('pt-BR')}
                   </td>
                   <td colSpan={4} />
@@ -882,61 +879,61 @@ export default function TrafegoPage() {
             Performance por Anúncio · {anuncios.length}
           </p>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+        <div className="overflow-x-auto rounded-lg border" style={{ borderColor: 'var(--border)' }}>
+          <table className="w-full">
             <thead>
-              <tr className="border-b border-gray-800">
-                <th className="pb-2 text-left text-gray-400 font-medium">Anúncio</th>
-                <th className="pb-2 text-left text-gray-400 font-medium">Conjunto</th>
-                <th className="pb-2 text-right text-gray-400 font-medium">Gasto</th>
-                <th className="pb-2 text-right text-gray-400 font-medium">Leads</th>
-                <th className="pb-2 text-right text-gray-400 font-medium">CPL</th>
-                <th className="pb-2 text-right text-gray-400 font-medium">CTR</th>
-                <th className="pb-2 text-right text-gray-400 font-medium">Cliques</th>
-                <th className="pb-2 text-right text-gray-400 font-medium">% Qualif.</th>
+              <tr className="tbl-thead-row">
+                <th className="tbl-th">Anúncio</th>
+                <th className="tbl-th">Conjunto</th>
+                <th className="tbl-th tbl-th-right">Gasto</th>
+                <th className="tbl-th tbl-th-right">Leads</th>
+                <th className="tbl-th tbl-th-right">CPL</th>
+                <th className="tbl-th tbl-th-right">CTR</th>
+                <th className="tbl-th tbl-th-right">Cliques</th>
+                <th className="tbl-th tbl-th-right">% Qualif.</th>
               </tr>
             </thead>
             <tbody>
               {loading && (
-                <tr><td colSpan={8} className="py-8 text-center text-gray-500">Carregando...</td></tr>
+                <tr><td colSpan={8} className="tbl-td py-8 text-center">Carregando...</td></tr>
               )}
               {!loading && anuncios.length === 0 && (
-                <tr><td colSpan={8} className="py-8 text-center text-gray-500">Nenhum anúncio encontrado no período</td></tr>
+                <tr><td colSpan={8} className="tbl-td py-8 text-center">Nenhum anúncio encontrado no período</td></tr>
               )}
               {anuncios.slice(0, 20).map((a, i) => {
                 const qa = qualifPorAnuncioMap.get(a.anuncio)
                 return (
-                <tr key={i} className="border-b border-gray-800/60 hover:bg-gray-800/20">
-                  <td className="py-2.5 pr-4">
-                    <span className="text-gray-200 max-w-xs truncate block cursor-help" title={a.anuncio}>
+                <tr key={i} className="tbl-row">
+                  <td className="tbl-td tbl-td-strong">
+                    <span className="max-w-xs truncate block cursor-help" title={a.anuncio}>
                       {a.anuncio}
                     </span>
                   </td>
-                  <td className="py-2.5 pr-4">
-                    <span className="text-gray-500 max-w-xs truncate block cursor-help" title={a.conjunto_anuncio}>
+                  <td className="tbl-td">
+                    <span className="max-w-xs truncate block cursor-help" style={{ color: 'var(--text-3)' }} title={a.conjunto_anuncio}>
                       {a.conjunto_anuncio}
                     </span>
                   </td>
-                  <td className="py-2.5 text-right text-gray-200 tabular-nums">{fmt_currency(a.total_gasto)}</td>
-                  <td className="py-2.5 text-right tabular-nums">
+                  <td className="tbl-td text-right tabular-nums tbl-td-strong">{fmt_currency(a.total_gasto)}</td>
+                  <td className="tbl-td text-right tabular-nums">
                     {a.leads > 0
-                      ? <span className="text-emerald-400 font-medium">{a.leads.toLocaleString('pt-BR')}</span>
+                      ? <span className="text-emerald-400 font-semibold">{a.leads.toLocaleString('pt-BR')}</span>
                       : <span className="text-gray-600">—</span>}
                   </td>
-                  <td className="py-2.5 text-right tabular-nums">
+                  <td className="tbl-td text-right tabular-nums">
                     {a.cpl != null
-                      ? <span className="text-blue-400">{fmt_currency(a.cpl)}</span>
+                      ? <span className="text-blue-400 font-medium">{fmt_currency(a.cpl)}</span>
                       : <span className="text-gray-600">—</span>}
                   </td>
-                  <td className="py-2.5 text-right text-gray-400 tabular-nums">
+                  <td className="tbl-td text-right tabular-nums">
                     {a.ctr_medio ? `${Number(a.ctr_medio).toFixed(2)}%` : '—'}
                   </td>
-                  <td className="py-2.5 text-right text-gray-500 tabular-nums">
+                  <td className="tbl-td text-right tabular-nums">
                     {a.cliques > 0 ? a.cliques.toLocaleString('pt-BR') : '—'}
                   </td>
-                  <td className="py-2.5 text-right tabular-nums">
+                  <td className="tbl-td text-right tabular-nums">
                     {qa
-                      ? <span className="text-emerald-400 font-medium" title={`${qa.qualificados} de ${qa.total} respostas de avatar`}>{qa.pct_qualificado}%</span>
+                      ? <span className="text-emerald-400 font-semibold" title={`${qa.qualificados} de ${qa.total} respostas de avatar`}>{qa.pct_qualificado}%</span>
                       : <span className="text-gray-600">—</span>}
                   </td>
                 </tr>
@@ -1227,19 +1224,19 @@ export default function TrafegoPage() {
           </p>
         )}
         {!carregandoPublicos && publicosVisiveis.length > 0 && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+          <div className="overflow-x-auto rounded-lg border" style={{ borderColor: 'var(--border)' }}>
+            <table className="w-full">
               <thead>
-                <tr className="border-b border-gray-800">
-                  <th className="pb-2 text-left text-gray-400 font-medium sticky left-0 bg-gray-900">Público</th>
+                <tr className="tbl-thead-row">
+                  <th className="tbl-th sticky left-0" style={{ background: 'var(--bg-app)' }}>Público</th>
                   {publicosDiasUnicos.map(dia => (
-                    <th key={dia} className="pb-2 text-right text-gray-500 font-medium whitespace-nowrap px-2">
+                    <th key={dia} className="tbl-th tbl-th-right whitespace-nowrap px-2">
                       {diaCurto(dia)}
                     </th>
                   ))}
-                  <th className="pb-2 text-right text-gray-400 font-medium pl-4">Atual</th>
-                  <th className="pb-2 text-right text-gray-400 font-medium">Anterior</th>
-                  <th className="pb-2 text-right text-gray-400 font-medium">Variação</th>
+                  <th className="tbl-th tbl-th-right pl-4">Atual</th>
+                  <th className="tbl-th tbl-th-right">Anterior</th>
+                  <th className="tbl-th tbl-th-right">Variação</th>
                 </tr>
               </thead>
               <tbody>
@@ -1248,9 +1245,9 @@ export default function TrafegoPage() {
                     ? (p.atual - p.anterior) / p.anterior
                     : null
                   return (
-                    <tr key={i} className="border-b border-gray-800/60 hover:bg-gray-800/20">
-                      <td className="py-2.5 pr-4 sticky left-0 bg-gray-900/95">
-                        <span className="text-gray-200 max-w-md truncate block" title={p.publico_nome}>
+                    <tr key={i} className="tbl-row">
+                      <td className="tbl-td tbl-td-strong sticky left-0" style={{ background: 'var(--bg-surface)' }}>
+                        <span className="max-w-md truncate block" title={p.publico_nome}>
                           {labelPublico(p.publico_nome)}
                           {p.semelhante && <span className="ml-1.5 text-[10px] text-gray-600">(semelhante)</span>}
                         </span>
@@ -1258,22 +1255,22 @@ export default function TrafegoPage() {
                       {publicosDiasUnicos.map(dia => {
                         const valor = evolucaoFiltrada.find(x => x.dia === dia && x.publico_nome === p.publico_nome)?.tamanho_min
                         return (
-                          <td key={dia} className="py-2.5 text-right text-gray-400 tabular-nums px-2 whitespace-nowrap">
+                          <td key={dia} className="tbl-td text-right tabular-nums px-2 whitespace-nowrap">
                             {valor != null ? valor.toLocaleString('pt-BR') : '—'}
                           </td>
                         )
                       })}
-                      <td className="py-2.5 text-right text-gray-100 font-medium tabular-nums pl-4">
+                      <td className="tbl-td text-right tabular-nums tbl-td-strong pl-4">
                         {p.atual != null ? p.atual.toLocaleString('pt-BR') : '—'}
                       </td>
-                      <td className="py-2.5 text-right text-gray-500 tabular-nums">
+                      <td className="tbl-td text-right tabular-nums">
                         {p.anterior != null ? p.anterior.toLocaleString('pt-BR') : '—'}
                       </td>
-                      <td className="py-2.5 text-right tabular-nums">
+                      <td className="tbl-td text-right tabular-nums">
                         {variacao == null ? (
                           <span className="text-gray-600">—</span>
                         ) : (
-                          <span className={`flex items-center justify-end gap-1 font-medium ${
+                          <span className={`flex items-center justify-end gap-1 font-semibold ${
                             variacao > 0 ? 'text-emerald-400' : variacao < 0 ? 'text-red-400' : 'text-gray-500'
                           }`}>
                             {variacao > 0 ? <ArrowUp size={11} /> : variacao < 0 ? <ArrowDown size={11} /> : <Minus size={11} />}

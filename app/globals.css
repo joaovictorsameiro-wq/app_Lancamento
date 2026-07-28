@@ -94,6 +94,20 @@ h1, h2, h3, h4, h5, h6 {
 .field:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent); }
 .field::placeholder { color: var(--text-4); }
 
+/* ── Tabelas no estilo MARV (header sutil, linhas com divisor fino, sem zebra) ─ */
+.tbl-thead-row { background: var(--bg-app); border-bottom: 1px solid var(--border); }
+.tbl-th {
+  text-align: left; font-size: 0.75rem; font-weight: 600; color: var(--text-3);
+  padding: 0.75rem 1rem; white-space: nowrap;
+}
+.tbl-th-right { text-align: right; }
+.tbl-row { border-bottom: 1px solid var(--bg-elevated); transition: background-color 0.15s; }
+.tbl-row:hover { background: var(--bg-app); }
+.tbl-td { padding: 0.75rem 1rem; font-size: 0.8125rem; color: var(--text-2); }
+.tbl-td-strong { font-weight: 500; color: var(--text-1); }
+.tbl-foot-row { background: var(--bg-app); border-top: 2px solid var(--border); }
+.tbl-foot-td { padding: 0.625rem 1rem; font-size: 0.75rem; font-weight: 700; color: var(--text-2); }
+
 /* ── Charts ───────────────────────────────────────────────── */
 .tabular-nums { font-variant-numeric: tabular-nums; }
 .recharts-wrapper { font-family: inherit !important; }
