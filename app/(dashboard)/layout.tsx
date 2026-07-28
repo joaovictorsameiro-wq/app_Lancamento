@@ -41,8 +41,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Menu size={16} />
           </button>
           <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-emerald-500/20">
-              <Zap size={12} className="text-emerald-400" />
+            <div className="flex h-6 w-6 items-center justify-center rounded-md" style={{ background: 'var(--primary-tint)' }}>
+              <Zap size={12} style={{ color: 'var(--primary)' }} />
             </div>
             <span className="text-sm font-bold text-white">Launch Analytics</span>
           </div>

@@ -6,7 +6,7 @@ export default function ThemeScript() {
         var t = localStorage.getItem('theme');
         var el = document.documentElement;
         el.classList.remove('dark', 'light');
-        el.classList.add(t === 'light' ? 'light' : 'dark');
+        el.classList.add(t === 'dark' ? 'dark' : 'light');
       } catch(e) {}
     })();
   `

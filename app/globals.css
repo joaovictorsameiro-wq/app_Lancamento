@@ -12,43 +12,87 @@
   --text-2:      #d1d5db;
   --text-3:      #9ca3af;
   --text-4:      #6b7280;
+  --primary:       #5b8aff;
+  --primary-hover: #4f7cff;
+  --primary-tint:  #1e2a4a;
   color-scheme: dark;
 }
 
-/* ── Tema claro ───────────────────────────────────────────── */
+/* ── Tema claro (padrão — mesma paleta do app MARV Gestão) ─── */
 :root.light {
   --bg-app:      #f8fafc;
   --bg-surface:  #ffffff;
   --bg-elevated: #f1f5f9;
-  --bg-hover:    #e9eef4;
+  --bg-hover:    #f1f5f9;
   --border:      #e2e8f0;
   --border-soft: #cbd5e1;
   --text-1:      #0f172a;
   --text-2:      #1e293b;
-  --text-3:      #475569;
+  --text-3:      #64748b;
   --text-4:      #94a3b8;
+  --primary:       #4f7cff;
+  --primary-hover: #3d68f0;
+  --primary-tint:  #eef2ff;
   color-scheme: light;
 }
 
 @theme inline {
   --color-background: var(--bg-app);
   --color-foreground: var(--text-1);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-dm-sans);
+  --font-heading: var(--font-inter);
 }
 
 body {
   background: var(--bg-app);
   color: var(--text-1);
-  font-family: var(--font-sans), system-ui, sans-serif;
+  font-family: var(--font-dm-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
 /* ── Scrollbar ────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-track { background: var(--bg-elevated); }
 ::-webkit-scrollbar-thumb { background: var(--border-soft); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-4); }
+
+/* ── Utilitários no estilo MARV ───────────────────────────── */
+.card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 1rem;
+}
+.btn-primary {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  min-height: 2.75rem; padding: 0.5rem 1rem;
+  background: var(--primary); color: #fff;
+  font-size: 0.875rem; font-weight: 600; border-radius: 0.5rem;
+  transition: background-color 0.15s;
+}
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-primary:disabled { pointer-events: none; opacity: 0.6; }
+.btn-secondary {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem;
+  min-height: 2.75rem; padding: 0.5rem 1rem;
+  background: var(--bg-surface); border: 1px solid var(--border); color: var(--text-2);
+  font-size: 0.875rem; font-weight: 500; border-radius: 0.5rem;
+  transition: background-color 0.15s;
+}
+.btn-secondary:hover { background: var(--bg-app); }
+.field {
+  width: 100%; min-height: 2.75rem; padding: 0.625rem 0.75rem;
+  background: var(--bg-surface); border: 1px solid var(--border); border-radius: 0.5rem;
+  color: var(--text-1); font-size: 0.875rem;
+  transition: border-color 0.15s;
+}
+.field:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 20%, transparent); }
+.field::placeholder { color: var(--text-4); }
 
 /* ── Charts ───────────────────────────────────────────────── */
 .tabular-nums { font-variant-numeric: tabular-nums; }

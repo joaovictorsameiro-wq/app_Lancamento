@@ -48,8 +48,8 @@ function LoginForm() {
 
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-500/20 mb-4 border border-emerald-500/20">
-            <Zap size={28} className="text-emerald-400" />
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl mb-4 border" style={{ background: 'var(--primary-tint)', borderColor: 'var(--primary-tint)' }}>
+            <Zap size={28} style={{ color: 'var(--primary)' }} />
           </div>
           <h1 className="text-xl font-bold text-white tracking-tight">Launch Analytics</h1>
           <p className="text-sm text-gray-500 mt-1">Acesso restrito</p>
@@ -71,12 +71,7 @@ function LoginForm() {
                 onChange={e => setPassword(e.target.value)}
                 placeholder="Senha de acesso"
                 autoFocus
-                className="
-                  w-full rounded-xl bg-gray-800 border border-gray-700 px-4 py-3 pr-11
-                  text-white placeholder-gray-500 text-sm
-                  focus:outline-none focus:border-emerald-500/60 focus:ring-1 focus:ring-emerald-500/30
-                  transition-all
-                "
+                className="field pr-11 rounded-xl"
               />
               <button
                 type="button"
@@ -99,12 +94,7 @@ function LoginForm() {
             <button
               type="submit"
               disabled={loading || !password.trim()}
-              className="
-                w-full rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:bg-emerald-500/30
-                text-white disabled:text-white/40 font-semibold text-sm py-3
-                transition-all duration-150
-                flex items-center justify-center gap-2
-              "
+              className="btn-primary w-full rounded-xl py-3"
             >
               {loading ? (
                 <>

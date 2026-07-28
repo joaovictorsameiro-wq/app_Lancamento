@@ -34,13 +34,13 @@ const NAV_OUTROS = [
 export default function Sidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname()
   const router = useRouter()
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark')
+  const [theme, setTheme] = useState<'dark' | 'light'>('light')
   const outrosAtivo = NAV_OUTROS.some(item => pathname === item.href || pathname.startsWith(item.href))
   const [outrosAberto, setOutrosAberto] = useState(false)
 
   useEffect(() => {
     const saved = localStorage.getItem('theme')
-    setTheme(saved === 'light' ? 'light' : 'dark')
+    setTheme(saved === 'dark' ? 'dark' : 'light')
   }, [])
 
   useEffect(() => {
@@ -65,8 +65,8 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
     <aside className="flex h-screen w-56 flex-col border-r border-gray-800 bg-gray-950">
       {/* Logo */}
       <div className="flex items-center gap-2 border-b border-gray-800 px-4 py-4">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/20">
-          <Zap size={14} className="text-emerald-400" />
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg" style={{ background: 'var(--primary-tint)' }}>
+          <Zap size={14} style={{ color: 'var(--primary)' }} />
         </div>
         <div className="flex-1">
           <p className="text-xs font-bold tracking-tight text-white">Launch</p>
@@ -84,18 +84,17 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
         {NAV.map(item => {
           const active = pathname === item.href || pathname.startsWith(item.href)
           return (
-            <Link key={item.href} href={item.href} className={`
-              group flex items-center gap-2.5 rounded-lg px-3 py-2 transition-all
-              ${active
-                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                : 'text-gray-400 hover:bg-gray-800/60 hover:text-gray-200 border border-transparent'
-              }
-            `}>
+            <Link key={item.href} href={item.href}
+              className={`group flex items-center gap-2.5 rounded-lg px-3 py-2 transition-all border ${
+                active ? 'border-transparent' : 'text-gray-400 hover:bg-gray-800/60 hover:text-gray-200 border-transparent'
+              }`}
+              style={active ? { background: 'var(--primary-tint)', color: 'var(--primary)' } : undefined}
+            >
               <item.icon size={15} className="shrink-0" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-medium">{item.label}</p>
               </div>
-              {active && <ChevronRight size={11} className="shrink-0 text-emerald-500" />}
+              {active && <ChevronRight size={11} className="shrink-0" style={{ color: 'var(--primary)' }} />}
             </Link>
           )
         })}
@@ -103,10 +102,10 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
         {/* Outros */}
         <button
           onClick={() => setOutrosAberto(v => !v)}
-          className={`
-            w-full group flex items-center gap-2.5 rounded-lg px-3 py-2 transition-all
-            ${outrosAtivo ? 'text-emerald-400' : 'text-gray-400 hover:bg-gray-800/60 hover:text-gray-200'}
-          `}
+          className={`w-full group flex items-center gap-2.5 rounded-lg px-3 py-2 transition-all ${
+            outrosAtivo ? '' : 'text-gray-400 hover:bg-gray-800/60 hover:text-gray-200'
+          }`}
+          style={outrosAtivo ? { color: 'var(--primary)' } : undefined}
         >
           <FolderClosed size={15} className="shrink-0" />
           <div className="min-w-0 flex-1 text-left">
@@ -120,18 +119,17 @@ export default function Sidebar({ onClose }: { onClose?: () => void }) {
             {NAV_OUTROS.map(item => {
               const active = pathname === item.href || pathname.startsWith(item.href)
               return (
-                <Link key={item.href} href={item.href} className={`
-                  group flex items-center gap-2.5 rounded-lg px-3 py-2 transition-all
-                  ${active
-                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                    : 'text-gray-500 hover:bg-gray-800/60 hover:text-gray-200 border border-transparent'
-                  }
-                `}>
+                <Link key={item.href} href={item.href}
+                  className={`group flex items-center gap-2.5 rounded-lg px-3 py-2 transition-all border ${
+                    active ? 'border-transparent' : 'text-gray-500 hover:bg-gray-800/60 hover:text-gray-200 border-transparent'
+                  }`}
+                  style={active ? { background: 'var(--primary-tint)', color: 'var(--primary)' } : undefined}
+                >
                   <item.icon size={14} className="shrink-0" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-xs font-medium">{item.label}</p>
                   </div>
-                  {active && <ChevronRight size={11} className="shrink-0 text-emerald-500" />}
+                  {active && <ChevronRight size={11} className="shrink-0" style={{ color: 'var(--primary)' }} />}
                 </Link>
               )
             })}
