@@ -147,6 +147,183 @@ h1, h2, h3, h4, h5, h6 {
 :root.light .hover\:text-gray-200:hover { color: var(--text-1) !important; }
 :root.light .hover\:text-gray-400:hover { color: var(--text-3) !important; }
 
+/* ══════════════════════════════════════════════════════════
+   ACENTOS DE COR — versões claras
+   As cores (emerald-400, bg-blue-500/10 etc.) foram calibradas
+   pra fundo escuro. Em fundo branco viram "neon"/baixo contraste.
+   Aqui a gente troca pro par pastel-bg + texto-escuro, no
+   mesmo espírito do StatusChip do MARV (bg-emerald-50/text-emerald-700).
+══════════════════════════════════════════════════════════ */
+
+:root.light .text-emerald-400,
+:root.light .text-emerald-500 { color: #047857 !important; }
+:root.light .bg-emerald-500\/5,
+:root.light .bg-emerald-500\/10,
+:root.light .bg-emerald-500\/15 { background-color: #ecfdf5 !important; }
+:root.light .bg-emerald-500\/20 { background-color: #d1fae5 !important; }
+:root.light .border-emerald-500\/10,
+:root.light .border-emerald-500\/20,
+:root.light .border-emerald-500\/30 { border-color: #a7f3d0 !important; }
+:root.light .border-emerald-500\/40,
+:root.light .border-emerald-500\/50,
+:root.light .border-emerald-500\/60 { border-color: #6ee7b7 !important; }
+
+:root.light .text-blue-400,
+:root.light .text-blue-500 { color: #1d4ed8 !important; }
+:root.light .bg-blue-500\/5,
+:root.light .bg-blue-500\/10,
+:root.light .bg-blue-500\/15 { background-color: #eff6ff !important; }
+:root.light .bg-blue-500\/20 { background-color: #dbeafe !important; }
+:root.light .border-blue-500\/10,
+:root.light .border-blue-500\/20,
+:root.light .border-blue-500\/30 { border-color: #bfdbfe !important; }
+:root.light .border-blue-500\/40,
+:root.light .border-blue-500\/50,
+:root.light .border-blue-500\/60 { border-color: #93c5fd !important; }
+
+:root.light .text-violet-400,
+:root.light .text-violet-500 { color: #6d28d9 !important; }
+:root.light .bg-violet-500\/5,
+:root.light .bg-violet-500\/10,
+:root.light .bg-violet-500\/15 { background-color: #f5f3ff !important; }
+:root.light .bg-violet-500\/20 { background-color: #ede9fe !important; }
+:root.light .border-violet-500\/10,
+:root.light .border-violet-500\/20,
+:root.light .border-violet-500\/30 { border-color: #ddd6fe !important; }
+:root.light .border-violet-500\/40,
+:root.light .border-violet-500\/50,
+:root.light .border-violet-500\/60 { border-color: #c4b5fd !important; }
+
+:root.light .text-purple-400,
+:root.light .text-purple-500 { color: #7e22ce !important; }
+:root.light .bg-purple-500\/5,
+:root.light .bg-purple-500\/10,
+:root.light .bg-purple-500\/15 { background-color: #faf5ff !important; }
+:root.light .bg-purple-500\/20 { background-color: #f3e8ff !important; }
+:root.light .border-purple-500\/10,
+:root.light .border-purple-500\/20,
+:root.light .border-purple-500\/30 { border-color: #e9d5ff !important; }
+:root.light .border-purple-500\/40,
+:root.light .border-purple-500\/50,
+:root.light .border-purple-500\/60 { border-color: #d8b4fe !important; }
+
+:root.light .text-teal-400,
+:root.light .text-teal-500 { color: #0f766e !important; }
+:root.light .bg-teal-500\/5,
+:root.light .bg-teal-500\/10,
+:root.light .bg-teal-500\/15 { background-color: #f0fdfa !important; }
+:root.light .bg-teal-500\/20 { background-color: #ccfbf1 !important; }
+:root.light .border-teal-500\/10,
+:root.light .border-teal-500\/20,
+:root.light .border-teal-500\/30 { border-color: #99f6e4 !important; }
+:root.light .border-teal-500\/40,
+:root.light .border-teal-500\/50,
+:root.light .border-teal-500\/60 { border-color: #5eead4 !important; }
+
+:root.light .text-cyan-400,
+:root.light .text-cyan-500 { color: #0e7490 !important; }
+:root.light .bg-cyan-500\/5,
+:root.light .bg-cyan-500\/10,
+:root.light .bg-cyan-500\/15 { background-color: #ecfeff !important; }
+:root.light .bg-cyan-500\/20 { background-color: #cffafe !important; }
+:root.light .border-cyan-500\/10,
+:root.light .border-cyan-500\/20,
+:root.light .border-cyan-500\/30 { border-color: #a5f3fc !important; }
+:root.light .border-cyan-500\/40,
+:root.light .border-cyan-500\/50,
+:root.light .border-cyan-500\/60 { border-color: #67e8f9 !important; }
+
+:root.light .text-pink-400,
+:root.light .text-pink-500 { color: #be185d !important; }
+:root.light .bg-pink-500\/5,
+:root.light .bg-pink-500\/10,
+:root.light .bg-pink-500\/15 { background-color: #fdf2f8 !important; }
+:root.light .bg-pink-500\/20 { background-color: #fce7f3 !important; }
+:root.light .border-pink-500\/10,
+:root.light .border-pink-500\/20,
+:root.light .border-pink-500\/30 { border-color: #fbcfe8 !important; }
+:root.light .border-pink-500\/40,
+:root.light .border-pink-500\/50,
+:root.light .border-pink-500\/60 { border-color: #f9a8d4 !important; }
+
+:root.light .text-yellow-400,
+:root.light .text-yellow-500 { color: #a16207 !important; }
+:root.light .bg-yellow-500\/5,
+:root.light .bg-yellow-500\/10,
+:root.light .bg-yellow-500\/15 { background-color: #fefce8 !important; }
+:root.light .bg-yellow-500\/20 { background-color: #fef9c3 !important; }
+:root.light .border-yellow-500\/10,
+:root.light .border-yellow-500\/20,
+:root.light .border-yellow-500\/30 { border-color: #fef08a !important; }
+:root.light .border-yellow-500\/40,
+:root.light .border-yellow-500\/50,
+:root.light .border-yellow-500\/60 { border-color: #fde047 !important; }
+
+:root.light .text-orange-400,
+:root.light .text-orange-500 { color: #c2410c !important; }
+:root.light .bg-orange-500\/5,
+:root.light .bg-orange-500\/10,
+:root.light .bg-orange-500\/15 { background-color: #fff7ed !important; }
+:root.light .bg-orange-500\/20 { background-color: #ffedd5 !important; }
+:root.light .border-orange-500\/10,
+:root.light .border-orange-500\/20,
+:root.light .border-orange-500\/30 { border-color: #fed7aa !important; }
+:root.light .border-orange-500\/40,
+:root.light .border-orange-500\/50,
+:root.light .border-orange-500\/60 { border-color: #fdba74 !important; }
+
+:root.light .text-red-400,
+:root.light .text-red-500 { color: #b91c1c !important; }
+:root.light .bg-red-500\/5,
+:root.light .bg-red-500\/10,
+:root.light .bg-red-500\/15 { background-color: #fef2f2 !important; }
+:root.light .bg-red-500\/20 { background-color: #fee2e2 !important; }
+:root.light .border-red-500\/10,
+:root.light .border-red-500\/20,
+:root.light .border-red-500\/30 { border-color: #fecaca !important; }
+:root.light .border-red-500\/40,
+:root.light .border-red-500\/50,
+:root.light .border-red-500\/60 { border-color: #fca5a5 !important; }
+
+:root.light .text-amber-400,
+:root.light .text-amber-500 { color: #b45309 !important; }
+:root.light .bg-amber-500\/5,
+:root.light .bg-amber-500\/10,
+:root.light .bg-amber-500\/15 { background-color: #fffbeb !important; }
+:root.light .bg-amber-500\/20 { background-color: #fef3c7 !important; }
+:root.light .border-amber-500\/10,
+:root.light .border-amber-500\/20,
+:root.light .border-amber-500\/30 { border-color: #fde68a !important; }
+:root.light .border-amber-500\/40,
+:root.light .border-amber-500\/50,
+:root.light .border-amber-500\/60 { border-color: #fcd34d !important; }
+
+:root.light .text-indigo-400,
+:root.light .text-indigo-500 { color: #4338ca !important; }
+:root.light .bg-indigo-500\/5,
+:root.light .bg-indigo-500\/10,
+:root.light .bg-indigo-500\/15 { background-color: #eef2ff !important; }
+:root.light .bg-indigo-500\/20 { background-color: #e0e7ff !important; }
+:root.light .border-indigo-500\/10,
+:root.light .border-indigo-500\/20,
+:root.light .border-indigo-500\/30 { border-color: #c7d2fe !important; }
+:root.light .border-indigo-500\/40,
+:root.light .border-indigo-500\/50,
+:root.light .border-indigo-500\/60 { border-color: #a5b4fc !important; }
+
+:root.light .text-rose-400,
+:root.light .text-rose-500 { color: #be123c !important; }
+:root.light .bg-rose-500\/5,
+:root.light .bg-rose-500\/10,
+:root.light .bg-rose-500\/15 { background-color: #fff1f2 !important; }
+:root.light .bg-rose-500\/20 { background-color: #ffe4e6 !important; }
+:root.light .border-rose-500\/10,
+:root.light .border-rose-500\/20,
+:root.light .border-rose-500\/30 { border-color: #fecdd3 !important; }
+:root.light .border-rose-500\/40,
+:root.light .border-rose-500\/50,
+:root.light .border-rose-500\/60 { border-color: #fda4af !important; }
+
 /* ── Seções coloridas de semana: bordas viram neutras no claro ─ */
 :root.light .border-blue-500\/30    { border-color: var(--border) !important; }
 :root.light .border-cyan-500\/30    { border-color: var(--border) !important; }
