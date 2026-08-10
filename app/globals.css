@@ -136,6 +136,12 @@ h1, h2, h3, h4, h5, h6 {
 :root.light .bg-gray-800\/30 { background-color: var(--bg-elevated) !important; }
 :root.light .bg-gray-800\/50 { background-color: var(--bg-elevated) !important; }
 
+/* Cards com gradiente (KpiCard) */
+:root.light .bg-gradient-to-br.from-gray-900\/80.to-gray-900\/40 {
+  background-image: none !important;
+  background-color: var(--bg-surface) !important;
+}
+
 /* Bordas */
 :root.light .border-gray-800 { border-color: var(--border) !important; }
 :root.light .border-gray-700 { border-color: var(--border-soft) !important; }
