@@ -131,6 +131,10 @@ h1, h2, h3, h4, h5, h6 {
 :root.light .bg-gray-900\/50 { background-color: var(--bg-surface) !important; }
 :root.light .bg-gray-900\/20 { background-color: var(--bg-elevated) !important; }
 :root.light .bg-gray-900\/30 { background-color: var(--bg-elevated) !important; }
+:root.light .bg-gray-900\/60 { background-color: var(--bg-surface) !important; }
+:root.light .bg-gray-900\/95 { background-color: var(--bg-surface) !important; }
+:root.light .bg-gray-800\/30 { background-color: var(--bg-elevated) !important; }
+:root.light .bg-gray-800\/50 { background-color: var(--bg-elevated) !important; }
 
 /* Bordas */
 :root.light .border-gray-800 { border-color: var(--border) !important; }
