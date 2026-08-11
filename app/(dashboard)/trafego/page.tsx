@@ -387,13 +387,13 @@ export default function TrafegoPage() {
   const publicosVisiveis = publicosResumo
     .filter(p => mostrarSemelhantes || !p.semelhante)
     .filter(p => grupoPublicos === 'todos' ? true : grupoPublico(p.publico_nome) === grupoPublicos)
-    .sort((a, b) => (b.atual ?? 0) - (a.atual ?? 0))
+    .sort((a, b) => a.publico_nome.localeCompare(b.publico_nome))
 
   const evolucaoFiltrada = publicosEvolucao.filter(p =>
     (mostrarSemelhantes || !p.semelhante) && (grupoPublicos === 'todos' || grupoPublico(p.publico_nome) === grupoPublicos)
   )
   const publicosDiasUnicos = Array.from(new Set(evolucaoFiltrada.map(p => p.dia))).sort()
-  const publicosNomesUnicos = Array.from(new Set(evolucaoFiltrada.map(p => p.publico_nome)))
+  const publicosNomesUnicos = Array.from(new Set(evolucaoFiltrada.map(p => p.publico_nome))).sort((a, b) => a.localeCompare(b))
   const chartPublicos = publicosDiasUnicos.map(dia => {
     const row: Record<string, string | number> = { dia: diaCurto(dia) }
     for (const nome of publicosNomesUnicos) {
